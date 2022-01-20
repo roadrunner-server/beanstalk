@@ -68,10 +68,9 @@ func (cp *ConnPool) Put(_ context.Context, body []byte, pri uint32, delay, ttr t
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
 			return 0, errors.Errorf("err: %s\nerr redial: %s", err, errN)
-		} else {
-			// retry put only when we redialed
-			return cp.t.Put(body, pri, delay, ttr)
 		}
+
+		return cp.t.Put(body, pri, delay, ttr)
 	}
 
 	return id, nil
@@ -93,10 +92,10 @@ func (cp *ConnPool) Reserve(reserveTimeout time.Duration) (uint64, []byte, error
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
 			return 0, nil, errors.Errorf("err: %s\nerr redial: %s", err, errN)
-		} else {
-			// retry Reserve only when we redialed
-			return cp.ts.Reserve(reserveTimeout)
 		}
+
+		// retry Reserve only when we redialed
+		return cp.ts.Reserve(reserveTimeout)
 	}
 
 	return id, body, nil
@@ -112,10 +111,10 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
 			return errors.Errorf("err: %s\nerr redial: %s", err, errN)
-		} else {
-			// retry Delete only when we redialed
-			return cp.conn.Delete(id)
 		}
+
+		// retry Delete only when we redialed
+		return cp.conn.Delete(id)
 	}
 	return nil
 }
@@ -129,9 +128,9 @@ func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 		errR := cp.checkAndRedial(err)
 		if errR != nil {
 			return nil, errors.Errorf("err: %s\nerr redial: %s", err, errR)
-		} else {
-			return cp.conn.Stats()
 		}
+
+		return cp.conn.Stats()
 	}
 
 	return stat, nil
@@ -194,10 +193,11 @@ func (cp *ConnPool) redial() error {
 func (cp *ConnPool) checkAndRedial(err error) error {
 	const op = errors.Op("connection_pool_check_redial")
 	const EOF string = "EOF"
-	switch et := err.(type) { //nolint:gocritic
+	switch et := err.(type) { //nolint:gocritic,errorlint
 	// check if the error
 	case beanstalk.ConnError:
-		switch bErr := et.Err.(type) {
+		// error is not wrapped
+		switch bErr := et.Err.(type) { //nolint:errorlint
 		case *net.OpError:
 			cp.RUnlock()
 			errR := cp.redial()

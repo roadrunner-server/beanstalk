@@ -136,7 +136,7 @@ func fromJob(job *jobs.Job) *Item {
 	}
 }
 
-func (c *consumer) unpack(id uint64, data []byte, out *Item) error {
+func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
 	if err != nil {
 		return err

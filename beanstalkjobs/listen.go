@@ -2,12 +2,13 @@ package beanstalkjobs
 
 import (
 	"context"
+	stderr "errors"
 
 	"github.com/beanstalkd/go-beanstalk"
 	"go.uber.org/zap"
 )
 
-func (c *consumer) listen() {
+func (c *Consumer) listen() {
 	for {
 		select {
 		case <-c.stopCh:
@@ -16,13 +17,14 @@ func (c *consumer) listen() {
 		default:
 			id, body, err := c.pool.Reserve(c.reserveTimeout)
 			if err != nil {
-				if errB, ok := err.(beanstalk.ConnError); ok {
-					switch errB.Err { //nolint:gocritic
-					case beanstalk.ErrTimeout:
+				// error isn't wrapped
+				if errB, ok := err.(beanstalk.ConnError); ok { //nolint:errorlint
+					if stderr.Is(errB.Err, beanstalk.ErrTimeout) {
 						c.log.Info("beanstalk reserve timeout", zap.Error(errB))
 						continue
 					}
 				}
+
 				// in case of other error - continue
 				c.log.Warn("beanstalk reserve", zap.Error(err))
 				continue

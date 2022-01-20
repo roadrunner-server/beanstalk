@@ -23,7 +23,7 @@ const (
 	pluginName string = "beanstalk"
 )
 
-type consumer struct {
+type Consumer struct {
 	log *zap.Logger
 	pq  priorityqueue.Queue
 
@@ -45,7 +45,7 @@ type consumer struct {
 	stopCh chan struct{}
 }
 
-func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*consumer, error) {
+func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -83,8 +83,8 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Confi
 		return nil, errors.E(op, err)
 	}
 
-	// initialize job consumer
-	jc := &consumer{
+	// initialize job Consumer
+	jc := &Consumer{
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -104,7 +104,7 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Confi
 	return jc, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*consumer, error) {
+func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -132,8 +132,8 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 		return nil, errors.E(op, err)
 	}
 
-	// initialize job consumer
-	jc := &consumer{
+	// initialize job Consumer
+	jc := &Consumer{
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -152,7 +152,7 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 
 	return jc, nil
 }
-func (c *consumer) Push(ctx context.Context, jb *jobs.Job) error {
+func (c *Consumer) Push(ctx context.Context, jb *jobs.Job) error {
 	const op = errors.Op("beanstalk_push")
 	// check if the pipeline registered
 
@@ -170,14 +170,14 @@ func (c *consumer) Push(ctx context.Context, jb *jobs.Job) error {
 	return nil
 }
 
-func (c *consumer) Register(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Register(_ context.Context, p *pipeline.Pipeline) error {
 	// register the pipeline
 	c.pipeline.Store(p)
 	return nil
 }
 
 // State https://github.com/beanstalkd/beanstalkd/blob/master/doc/protocol.txt#L514
-func (c *consumer) State(ctx context.Context) (*jobs.State, error) {
+func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
 	const op = errors.Op("beanstalk_state")
 	stat, err := c.pool.Stats(ctx)
 	if err != nil {
@@ -213,7 +213,7 @@ func (c *consumer) State(ctx context.Context) (*jobs.State, error) {
 	return out, nil
 }
 
-func (c *consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	const op = errors.Op("beanstalk_run")
 	start := time.Now()
 
@@ -232,7 +232,7 @@ func (c *consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	return nil
 }
 
-func (c *consumer) Stop(context.Context) error {
+func (c *Consumer) Stop(context.Context) error {
 	start := time.Now()
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
 
@@ -247,7 +247,7 @@ func (c *consumer) Stop(context.Context) error {
 	return nil
 }
 
-func (c *consumer) Pause(_ context.Context, p string) {
+func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
@@ -270,7 +270,7 @@ func (c *consumer) Pause(_ context.Context, p string) {
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
-func (c *consumer) Resume(_ context.Context, p string) {
+func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
@@ -295,7 +295,7 @@ func (c *consumer) Resume(_ context.Context, p string) {
 	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
-func (c *consumer) handleItem(ctx context.Context, item *Item) error {
+func (c *Consumer) handleItem(ctx context.Context, item *Item) error {
 	const op = errors.Op("beanstalk_handle_item")
 
 	bb := new(bytes.Buffer)
@@ -337,7 +337,7 @@ func (c *consumer) handleItem(ctx context.Context, item *Item) error {
 	return nil
 }
 
-func (c *consumer) handleTPush(data []byte, tube string) error {
+func (c *Consumer) handleTPush(data []byte, tube string) error {
 	// todo(rustatian): hash c.addr+c.network, store, and then get from the map and put data
 	// it's tooo big overhead to connect every time
 	connT, err := beanstalk.DialTimeout(c.network, c.addr, c.tout)
