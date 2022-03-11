@@ -6,9 +6,9 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.1.0
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/goccy/go-json v0.9.5
-	github.com/roadrunner-server/api/v2 v2.10.0
+	github.com/roadrunner-server/api/v2 v2.11.0
 	github.com/roadrunner-server/errors v1.1.1
-	github.com/roadrunner-server/sdk/v2 v2.10.0
+	github.com/roadrunner-server/sdk/v2 v2.10.1
 	go.uber.org/zap v1.21.0
 )
 
