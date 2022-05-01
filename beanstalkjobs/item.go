@@ -42,6 +42,9 @@ type Options struct {
 	// Delay defines time duration to delay execution for. Defaults to none.
 	Delay int64 `json:"delay,omitempty"`
 
+	// AutoAck option
+	AutoAck bool `json:"auto_ack"`
+
 	// Private ================
 	id          uint64
 	conn        *beanstalk.Conn
@@ -87,10 +90,16 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	if i.Options.AutoAck {
+		return nil
+	}
 	return i.Options.conn.Delete(i.Options.id)
 }
 
 func (i *Item) Nack() error {
+	if i.Options.AutoAck {
+		return nil
+	}
 	return i.Options.conn.Delete(i.Options.id)
 }
 
@@ -129,6 +138,7 @@ func fromJob(job *jobs.Job) *Item {
 		Payload: job.Payload,
 		Headers: job.Headers,
 		Options: &Options{
+			AutoAck:  job.Options.AutoAck,
 			Priority: job.Options.Priority,
 			Pipeline: job.Options.Pipeline,
 			Delay:    job.Options.Delay,
