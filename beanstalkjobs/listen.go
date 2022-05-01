@@ -30,13 +30,23 @@ func (c *Consumer) listen() {
 				continue
 			}
 
-			// todo(rustatian): to sync pool
 			item := &Item{}
 			err = c.unpack(id, body, item)
 			if err != nil {
 				c.log.Error("beanstalk unpack item", zap.Error(err))
-				_ = c.pool.Delete(context.Background(), id)
+				errDel := c.pool.Delete(context.Background(), id)
+				if errDel != nil {
+					c.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
+				}
 				continue
+			}
+
+			if item.Options.AutoAck {
+				c.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
+				errDel := c.pool.Delete(context.Background(), id)
+				if errDel != nil {
+					c.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
+				}
 			}
 
 			// insert job into the priority queue
