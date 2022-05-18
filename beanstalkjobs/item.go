@@ -8,9 +8,14 @@ import (
 
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v2/utils"
+	"go.uber.org/zap"
+)
+
+const (
+	auto string = "deduced_by_rr"
 )
 
 type Item struct {
@@ -46,10 +51,9 @@ type Options struct {
 	AutoAck bool `json:"auto_ack"`
 
 	// Private ================
-	id          uint64
-	conn        *beanstalk.Conn
-	requeueFn   func(context.Context, *Item) error
-	handleTPush func([]byte, string) error
+	id        uint64
+	conn      *beanstalk.Conn
+	requeueFn func(context.Context, *Item) error
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -122,12 +126,7 @@ func (i *Item) Requeue(headers map[string][]string, delay int64) error {
 	return nil
 }
 
-func (i *Item) Respond(data []byte, queue string) error {
-	const op = errors.Op("beanstalk_respond")
-	err := i.Options.handleTPush(data, queue)
-	if err != nil {
-		return errors.E(op, err)
-	}
+func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
@@ -149,6 +148,28 @@ func fromJob(job *jobs.Job) *Item {
 func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
 	if err != nil {
+		if c.consumeAll {
+			uid := uuid.NewString()
+			c.log.Debug("get raw payload", zap.String("assigned ID", uid))
+
+			*out = Item{
+				Job:     auto,
+				Ident:   uid,
+				Payload: utils.AsString(data),
+				Headers: nil,
+				Options: &Options{
+					Priority:  10,
+					Pipeline:  auto,
+					Delay:     0,
+					AutoAck:   false,
+					id:        id,
+					conn:      c.pool.conn,
+					requeueFn: c.handleItem,
+				},
+			}
+
+			return nil
+		}
 		return err
 	}
 
@@ -158,7 +179,6 @@ func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 	out.Options.conn = c.pool.conn
 	out.Options.id = id
 	out.Options.requeueFn = c.handleItem
-	out.Options.handleTPush = c.handleTPush
 
 	return nil
 }

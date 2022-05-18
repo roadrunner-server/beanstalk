@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/beanstalkd/go-beanstalk"
 	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
 	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
@@ -24,8 +23,9 @@ const (
 )
 
 type Consumer struct {
-	log *zap.Logger
-	pq  priorityqueue.Queue
+	log        *zap.Logger
+	pq         priorityqueue.Queue
+	consumeAll bool
 
 	pipeline  atomic.Value
 	listeners uint32
@@ -90,6 +90,7 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Confi
 		pool:           cPool,
 		network:        dsn[0],
 		addr:           dsn[1],
+		consumeAll:     conf.ConsumeAll,
 		tout:           conf.Timeout,
 		tName:          conf.Tube,
 		reserveTimeout: conf.ReserveTimeout,
@@ -140,6 +141,7 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 		network:        dsn[0],
 		addr:           dsn[1],
 		tout:           conf.Timeout,
+		consumeAll:     pipe.Bool(consumeAll, false),
 		tName:          pipe.String(tube, "default"),
 		reserveTimeout: time.Second * time.Duration(pipe.Int(reserveTimeout, 5)),
 		tubePriority:   utils.Uint32(uint32(pipe.Int(tubePriority, 1))),
@@ -335,23 +337,6 @@ func (c *Consumer) handleItem(ctx context.Context, item *Item) error {
 	}
 
 	return nil
-}
-
-func (c *Consumer) handleTPush(data []byte, tube string) error {
-	// todo(rustatian): hash c.addr+c.network, store, and then get from the map and put data
-	// it's tooo big overhead to connect every time
-	connT, err := beanstalk.DialTimeout(c.network, c.addr, c.tout)
-	if err != nil {
-		return err
-	}
-
-	t := beanstalk.NewTube(connT, tube)
-	_, err = t.Put(data, 0, 0, c.tout)
-	if err != nil {
-		return err
-	}
-
-	return connT.Close()
 }
 
 func ready(r uint32) bool {

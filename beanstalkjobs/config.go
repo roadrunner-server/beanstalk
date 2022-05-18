@@ -10,12 +10,14 @@ const (
 	tubePriority   string = "tube_priority"
 	tube           string = "tube"
 	reserveTimeout string = "reserve_timeout"
+	consumeAll     string = "consume_all"
 )
 
 type config struct {
 	// global
-	Addr    string        `mapstructure:"addr"`
-	Timeout time.Duration `mapstructure:"timeout"`
+	Addr       string        `mapstructure:"addr"`
+	Timeout    time.Duration `mapstructure:"timeout"`
+	ConsumeAll bool          `mapstructure:"consume_all"`
 
 	// local
 	PipePriority   int64         `mapstructure:"priority"`
