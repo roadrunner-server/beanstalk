@@ -1,6 +1,6 @@
 module github.com/roadrunner-server/beanstalk/v2
 
-go 1.18
+go 1.19
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.1.0
