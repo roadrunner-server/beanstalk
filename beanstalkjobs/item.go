@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"sync/atomic"
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
@@ -52,7 +53,7 @@ type Options struct {
 
 	// Private ================
 	id        uint64
-	conn      *beanstalk.Conn
+	conn      atomic.Pointer[beanstalk.Conn]
 	requeueFn func(context.Context, *Item) error
 }
 
@@ -97,14 +98,14 @@ func (i *Item) Ack() error {
 	if i.Options.AutoAck {
 		return nil
 	}
-	return i.Options.conn.Delete(i.Options.id)
+	return i.Options.conn.Load().Delete(i.Options.id)
 }
 
 func (i *Item) Nack() error {
 	if i.Options.AutoAck {
 		return nil
 	}
-	return i.Options.conn.Delete(i.Options.id)
+	return i.Options.conn.Load().Delete(i.Options.id)
 }
 
 func (i *Item) Requeue(headers map[string][]string, delay int64) error {
@@ -118,7 +119,7 @@ func (i *Item) Requeue(headers map[string][]string, delay int64) error {
 	}
 
 	// delete old job
-	err = i.Options.conn.Delete(i.Options.id)
+	err = i.Options.conn.Load().Delete(i.Options.id)
 	if err != nil {
 		return err
 	}
@@ -170,10 +171,11 @@ func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 					Delay:     0,
 					AutoAck:   false,
 					id:        id,
-					conn:      c.pool.conn,
 					requeueFn: c.handleItem,
 				},
 			}
+
+			out.Options.conn.Store(c.pool.connTS.Load())
 
 			return nil
 		}
@@ -183,7 +185,8 @@ func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 	if out.Options.Priority == 0 {
 		out.Options.Priority = c.priority
 	}
-	out.Options.conn = c.pool.conn
+
+	out.Options.conn.Store(c.pool.connTS.Load())
 	out.Options.id = id
 	out.Options.requeueFn = c.handleItem
 

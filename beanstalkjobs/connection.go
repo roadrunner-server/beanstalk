@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
@@ -17,10 +18,10 @@ type ConnPool struct {
 
 	log *zap.Logger
 
-	conn  *beanstalk.Conn
-	connT *beanstalk.Conn
-	ts    *beanstalk.TubeSet
-	t     *beanstalk.Tube
+	connTS atomic.Pointer[beanstalk.Conn]
+	connT  atomic.Pointer[beanstalk.Conn]
+	ts     atomic.Pointer[beanstalk.TubeSet]
+	t      atomic.Pointer[beanstalk.Tube]
 
 	network string
 	address string
@@ -42,17 +43,20 @@ func NewConnPool(network, address, tName string, tout time.Duration, log *zap.Lo
 	tb := beanstalk.NewTube(connT, tName)
 	ts := beanstalk.NewTubeSet(connTS, tName)
 
-	return &ConnPool{
+	cp := &ConnPool{
 		log:     log,
 		network: network,
 		address: address,
 		tName:   tName,
 		tout:    tout,
-		conn:    connTS,
-		connT:   connT,
-		ts:      ts,
-		t:       tb,
-	}, nil
+	}
+
+	cp.connTS.Store(connTS)
+	cp.connT.Store(connT)
+	cp.ts.Store(ts)
+	cp.t.Store(tb)
+
+	return cp, nil
 }
 
 // Put the payload
@@ -62,7 +66,7 @@ func (cp *ConnPool) Put(_ context.Context, body []byte, pri uint32, delay, ttr t
 	defer cp.RUnlock()
 
 	// TODO(rustatian): redial based on the token
-	id, err := cp.t.Put(body, pri, delay, ttr)
+	id, err := cp.t.Load().Put(body, pri, delay, ttr)
 	if err != nil {
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
@@ -70,7 +74,7 @@ func (cp *ConnPool) Put(_ context.Context, body []byte, pri uint32, delay, ttr t
 			return 0, errors.Errorf("err: %s\nerr redial: %s", err, errN)
 		}
 
-		return cp.t.Put(body, pri, delay, ttr)
+		return cp.t.Load().Put(body, pri, delay, ttr)
 	}
 
 	return id, nil
@@ -86,7 +90,7 @@ func (cp *ConnPool) Reserve(reserveTimeout time.Duration) (uint64, []byte, error
 	cp.RLock()
 	defer cp.RUnlock()
 
-	id, body, err := cp.ts.Reserve(reserveTimeout)
+	id, body, err := cp.ts.Load().Reserve(reserveTimeout)
 	if err != nil {
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
@@ -95,7 +99,7 @@ func (cp *ConnPool) Reserve(reserveTimeout time.Duration) (uint64, []byte, error
 		}
 
 		// retry Reserve only when we redialed
-		return cp.ts.Reserve(reserveTimeout)
+		return cp.ts.Load().Reserve(reserveTimeout)
 	}
 
 	return id, body, nil
@@ -105,7 +109,7 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 	cp.RLock()
 	defer cp.RUnlock()
 
-	err := cp.conn.Delete(id)
+	err := cp.connTS.Load().Delete(id)
 	if err != nil {
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
@@ -114,7 +118,7 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 		}
 
 		// retry Delete only when we redialed
-		return cp.conn.Delete(id)
+		return cp.connTS.Load().Delete(id)
 	}
 	return nil
 }
@@ -123,14 +127,14 @@ func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 	cp.RLock()
 	defer cp.RUnlock()
 
-	stat, err := cp.conn.Stats()
+	stat, err := cp.connTS.Load().Stats()
 	if err != nil {
 		errR := cp.checkAndRedial(err)
 		if errR != nil {
 			return nil, errors.Errorf("err: %s\nerr redial: %s", err, errR)
 		}
 
-		return cp.conn.Stats()
+		return cp.connTS.Load().Stats()
 	}
 
 	return stat, nil
@@ -140,8 +144,8 @@ func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 func (cp *ConnPool) Stop() {
 	cp.Lock()
 	defer cp.Unlock()
-	_ = cp.conn.Close()
-	_ = cp.connT.Close()
+	_ = cp.connTS.Load().Close()
+	_ = cp.connT.Load().Close()
 }
 
 func (cp *ConnPool) redial() error {
@@ -171,10 +175,14 @@ func (cp *ConnPool) redial() error {
 			return errors.E(op, errors.Str("connectionTS is nil"))
 		}
 
-		cp.t = beanstalk.NewTube(connT, cp.tName)
-		cp.ts = beanstalk.NewTubeSet(connTS, cp.tName)
-		cp.conn = connTS
-		cp.connT = connT
+		t := beanstalk.NewTube(connT, cp.tName)
+		cp.t.Swap(t)
+
+		ts := beanstalk.NewTubeSet(connTS, cp.tName)
+		cp.ts.Swap(ts)
+
+		cp.connTS.Swap(connTS)
+		cp.connT.Swap(connT)
 
 		cp.log.Debug("beanstalk redial was successful")
 		return nil

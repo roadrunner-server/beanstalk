@@ -27,7 +27,7 @@ type Consumer struct {
 	pq         priorityqueue.Queue
 	consumeAll bool
 
-	pipeline  atomic.Value
+	pipeline  atomic.Pointer[pipeline.Pipeline]
 	listeners uint32
 
 	// beanstalk
@@ -159,7 +159,7 @@ func (c *Consumer) Push(ctx context.Context, jb *jobs.Job) error {
 	// check if the pipeline registered
 
 	// load atomic value
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != jb.Options.Pipeline {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.Options.Pipeline, pipe.Name()))
 	}
@@ -186,7 +186,7 @@ func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
 		return nil, errors.E(op, err)
 	}
 
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 
 	out := &jobs.State{
 		Priority: uint64(pipe.Priority()),
@@ -222,7 +222,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 	// load atomic value
 	// check if the pipeline registered
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", p.Name(), pipe.Name()))
 	}
@@ -237,7 +237,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 func (c *Consumer) Stop(context.Context) error {
 	start := time.Now()
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 
 	if atomic.LoadUint32(&c.listeners) == 1 {
 		c.stopCh <- struct{}{}
@@ -253,7 +253,7 @@ func (c *Consumer) Stop(context.Context) error {
 func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
 		return
@@ -276,7 +276,7 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
 		return
