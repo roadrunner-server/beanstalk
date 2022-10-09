@@ -1,7 +1,7 @@
 package beanstalk
 
 import (
-	"github.com/roadrunner-server/beanstalk/v2/beanstalkjobs"
+	"github.com/roadrunner-server/beanstalk/v3/beanstalkjobs"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
 	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
