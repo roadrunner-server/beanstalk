@@ -1,11 +1,10 @@
 package beanstalk
 
 import (
-	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
-	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/api/v2/pq"
 	"github.com/roadrunner-server/beanstalk/v2/beanstalkjobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"go.uber.org/zap"
 )
 
@@ -13,23 +12,23 @@ const (
 	pluginName string = "beanstalk"
 )
 
-type Plugin struct {
-	log *zap.Logger
-	cfg cfgPlugin.Configurer
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshals it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
 }
 
-func (p *Plugin) Init(log *zap.Logger, cfg cfgPlugin.Configurer) error {
+type Plugin struct {
+	log *zap.Logger
+	cfg Configurer
+}
+
+func (p *Plugin) Init(log *zap.Logger, cfg Configurer) error {
 	p.log = new(zap.Logger)
 	*p.log = *log
 	p.cfg = cfg
-	return nil
-}
-
-func (p *Plugin) Serve() chan error {
-	return make(chan error)
-}
-
-func (p *Plugin) Stop() error {
 	return nil
 }
 

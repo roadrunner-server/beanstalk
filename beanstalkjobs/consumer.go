@@ -9,18 +9,25 @@ import (
 	"sync/atomic"
 	"time"
 
-	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
-	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/api/v2/pq"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v2/utils"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
+	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
 )
 
 const (
 	pluginName string = "beanstalk"
 )
+
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshals it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
+}
 
 type Consumer struct {
 	log        *zap.Logger
@@ -45,7 +52,7 @@ type Consumer struct {
 	stopCh chan struct{}
 }
 
-func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -105,7 +112,7 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Confi
 	return jc, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
