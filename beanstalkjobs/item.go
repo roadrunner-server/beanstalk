@@ -10,7 +10,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
 	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
 )
@@ -131,17 +131,17 @@ func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
-func fromJob(job *jobs.Job) *Item {
+func fromJob(job jobs.Job) *Item {
 	return &Item{
-		Job:     job.Job,
-		Ident:   job.Ident,
-		Payload: job.Payload,
-		Headers: job.Headers,
+		Job:     job.Name(),
+		Ident:   job.ID(),
+		Payload: job.Payload(),
+		Headers: job.Headers(),
 		Options: &Options{
-			AutoAck:  job.Options.AutoAck,
-			Priority: job.Options.Priority,
-			Pipeline: job.Options.Pipeline,
-			Delay:    job.Options.Delay,
+			AutoAck:  job.AutoAck(),
+			Priority: job.Priority(),
+			Pipeline: job.Pipeline(),
+			Delay:    job.Delay(),
 		},
 	}
 }

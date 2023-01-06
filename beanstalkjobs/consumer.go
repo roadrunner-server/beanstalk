@@ -9,17 +9,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
+	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
 )
 
-const (
-	pluginName string = "beanstalk"
-)
+const pluginName string = "beanstalk"
 
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshals it into a Struct.
@@ -31,10 +28,10 @@ type Configurer interface {
 
 type Consumer struct {
 	log        *zap.Logger
-	pq         priorityqueue.Queue
+	pq         pq.Queue
 	consumeAll bool
 
-	pipeline  atomic.Pointer[pipeline.Pipeline]
+	pipeline  atomic.Pointer[jobs.Pipeline]
 	listeners uint32
 
 	// beanstalk
@@ -52,7 +49,7 @@ type Consumer struct {
 	stopCh chan struct{}
 }
 
-func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -112,7 +109,7 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq 
 	return jc, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -161,14 +158,14 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, pq p
 
 	return jc, nil
 }
-func (c *Consumer) Push(ctx context.Context, jb *jobs.Job) error {
+func (c *Consumer) Push(ctx context.Context, jb jobs.Job) error {
 	const op = errors.Op("beanstalk_push")
 	// check if the pipeline registered
 
 	// load atomic value
-	pipe := c.pipeline.Load()
-	if pipe.Name() != jb.Options.Pipeline {
-		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.Options.Pipeline, pipe.Name()))
+	pipe := *c.pipeline.Load()
+	if pipe.Name() != jb.Pipeline() {
+		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.Pipeline(), pipe.Name()))
 	}
 
 	err := c.handleItem(ctx, fromJob(jb))
@@ -179,9 +176,9 @@ func (c *Consumer) Push(ctx context.Context, jb *jobs.Job) error {
 	return nil
 }
 
-func (c *Consumer) Register(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Register(_ context.Context, p jobs.Pipeline) error {
 	// register the pipeline
-	c.pipeline.Store(p)
+	c.pipeline.Store(&p)
 	return nil
 }
 
@@ -193,7 +190,7 @@ func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
 		return nil, errors.E(op, err)
 	}
 
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 
 	out := &jobs.State{
 		Priority: uint64(pipe.Priority()),
@@ -223,13 +220,13 @@ func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
 	return out, nil
 }
 
-func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Run(_ context.Context, p jobs.Pipeline) error {
 	const op = errors.Op("beanstalk_run")
 	start := time.Now()
 
 	// load atomic value
 	// check if the pipeline registered
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", p.Name(), pipe.Name()))
 	}
@@ -244,7 +241,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 func (c *Consumer) Stop(context.Context) error {
 	start := time.Now()
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 
 	if atomic.LoadUint32(&c.listeners) == 1 {
 		c.stopCh <- struct{}{}
@@ -260,7 +257,7 @@ func (c *Consumer) Stop(context.Context) error {
 func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
 		return
@@ -283,7 +280,7 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
 	// load atomic value
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
 		return
