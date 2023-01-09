@@ -3,7 +3,7 @@ package beanstalk
 import (
 	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
 	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
-	"github.com/roadrunner-server/beanstalk/v3/beanstalkjobs"
+	"github.com/roadrunner-server/beanstalk/v4/beanstalkjobs"
 	"github.com/roadrunner-server/errors"
 	"go.uber.org/zap"
 )

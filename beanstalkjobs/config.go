@@ -3,7 +3,7 @@ package beanstalkjobs
 import (
 	"time"
 
-	"github.com/roadrunner-server/sdk/v3/utils"
+	"github.com/roadrunner-server/sdk/v4/utils"
 )
 
 const (
