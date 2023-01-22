@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.uber.org/zap"
@@ -18,15 +18,16 @@ import (
 
 const pluginName string = "beanstalk"
 
+var _ jobs.Driver = (*Driver)(nil)
+
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshals it into a Struct.
 	UnmarshalKey(name string, out any) error
-
 	// Has checks if config section exists.
 	Has(name string) bool
 }
 
-type Consumer struct {
+type Driver struct {
 	log        *zap.Logger
 	pq         pq.Queue
 	consumeAll bool
@@ -49,7 +50,7 @@ type Consumer struct {
 	stopCh chan struct{}
 }
 
-func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Consumer, error) {
+func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -87,8 +88,8 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq 
 		return nil, errors.E(op, err)
 	}
 
-	// initialize job Consumer
-	jc := &Consumer{
+	// initialize job Driver
+	jc := &Driver{
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -106,10 +107,12 @@ func NewBeanstalkConsumer(configKey string, log *zap.Logger, cfg Configurer, pq 
 		reconnectCh: make(chan struct{}, 2),
 	}
 
+	jc.pipeline.Store(&pipe)
+
 	return jc, nil
 }
 
-func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Consumer, error) {
+func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	// PARSE CONFIGURATION -------
@@ -137,8 +140,8 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 		return nil, errors.E(op, err)
 	}
 
-	// initialize job Consumer
-	jc := &Consumer{
+	// initialize job Driver
+	jc := &Driver{
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -156,19 +159,21 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 		reconnectCh: make(chan struct{}, 2),
 	}
 
+	jc.pipeline.Store(&pipe)
+
 	return jc, nil
 }
-func (c *Consumer) Push(ctx context.Context, jb jobs.Job) error {
+func (d *Driver) Push(ctx context.Context, jb jobs.Job) error {
 	const op = errors.Op("beanstalk_push")
 	// check if the pipeline registered
 
 	// load atomic value
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 	if pipe.Name() != jb.Pipeline() {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.Pipeline(), pipe.Name()))
 	}
 
-	err := c.handleItem(ctx, fromJob(jb))
+	err := d.handleItem(ctx, fromJob(jb))
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -176,28 +181,22 @@ func (c *Consumer) Push(ctx context.Context, jb jobs.Job) error {
 	return nil
 }
 
-func (c *Consumer) Register(_ context.Context, p jobs.Pipeline) error {
-	// register the pipeline
-	c.pipeline.Store(&p)
-	return nil
-}
-
 // State https://github.com/beanstalkd/beanstalkd/blob/master/doc/protocol.txt#L514
-func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
+func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	const op = errors.Op("beanstalk_state")
-	stat, err := c.pool.Stats(ctx)
+	stat, err := d.pool.Stats(ctx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 
 	out := &jobs.State{
 		Priority: uint64(pipe.Priority()),
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
-		Queue:    c.tName,
-		Ready:    ready(atomic.LoadUint32(&c.listeners)),
+		Queue:    d.tName,
+		Ready:    ready(atomic.LoadUint32(&d.listeners)),
 	}
 
 	// set stat, skip errors (replace with 0)
@@ -220,89 +219,87 @@ func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
 	return out, nil
 }
 
-func (c *Consumer) Run(_ context.Context, p jobs.Pipeline) error {
+func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 	const op = errors.Op("beanstalk_run")
 	start := time.Now()
 
 	// load atomic value
 	// check if the pipeline registered
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", p.Name(), pipe.Name()))
 	}
 
-	atomic.AddUint32(&c.listeners, 1)
+	atomic.AddUint32(&d.listeners, 1)
 
-	go c.listen()
+	go d.listen()
 
-	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 	return nil
 }
 
-func (c *Consumer) Stop(context.Context) error {
+func (d *Driver) Stop(context.Context) error {
 	start := time.Now()
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 
-	if atomic.LoadUint32(&c.listeners) == 1 {
-		c.stopCh <- struct{}{}
+	if atomic.LoadUint32(&d.listeners) == 1 {
+		d.stopCh <- struct{}{}
 	}
 
 	// release associated resources
-	c.pool.Stop()
+	d.pool.Stop()
 
-	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 	return nil
 }
 
-func (c *Consumer) Pause(_ context.Context, p string) {
+func (d *Driver) Pause(_ context.Context, p string) error {
 	start := time.Now()
 	// load atomic value
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
-		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
-		return
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&c.listeners)
+	l := atomic.LoadUint32(&d.listeners)
 	// no active listeners
 	if l == 0 {
-		c.log.Warn("no active listeners, nothing to pause")
-		return
+		return errors.Str("no active listeners, nothing to pause")
 	}
 
-	atomic.AddUint32(&c.listeners, ^uint32(0))
+	atomic.AddUint32(&d.listeners, ^uint32(0))
 
-	c.stopCh <- struct{}{}
+	d.stopCh <- struct{}{}
+	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
-	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	return nil
 }
 
-func (c *Consumer) Resume(_ context.Context, p string) {
+func (d *Driver) Resume(_ context.Context, p string) error {
 	start := time.Now()
 	// load atomic value
-	pipe := *c.pipeline.Load()
+	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
-		c.log.Error("no such pipeline", zap.String("requested", p), zap.String("actual", pipe.Name()))
-		return
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&c.listeners)
+	l := atomic.LoadUint32(&d.listeners)
 	// no active listeners
 	if l == 1 {
-		c.log.Warn("sqs listener already in the active state")
-		return
+		return errors.Str("sqs listener already in the active state")
 	}
 
 	// start listener
-	go c.listen()
+	go d.listen()
 
 	// increase num of listeners
-	atomic.AddUint32(&c.listeners, 1)
+	atomic.AddUint32(&d.listeners, 1)
+	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
-	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	return nil
 }
 
-func (c *Consumer) handleItem(ctx context.Context, item *Item) error {
+func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	const op = errors.Op("beanstalk_handle_item")
 
 	bb := new(bytes.Buffer)
@@ -332,9 +329,9 @@ func (c *Consumer) handleItem(ctx context.Context, item *Item) error {
 	// <ttr> seconds, the job will time out and the server will release the job.
 	//	The minimum ttr is 1. If the client sends 0, the server will silently
 	// increase the ttr to 1. Maximum ttr is 2**32-1.
-	id, err := c.pool.Put(ctx, body, *c.tubePriority, item.Options.DelayDuration(), c.tout)
+	id, err := d.pool.Put(ctx, body, *d.tubePriority, item.Options.DelayDuration(), d.tout)
 	if err != nil {
-		errD := c.pool.Delete(ctx, id)
+		errD := d.pool.Delete(ctx, id)
 		if errD != nil {
 			return errors.E(op, errors.Errorf("%s:%s", err.Error(), errD.Error()))
 		}

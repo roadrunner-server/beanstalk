@@ -10,7 +10,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.uber.org/zap"
 )
@@ -146,12 +146,12 @@ func fromJob(job jobs.Job) *Item {
 	}
 }
 
-func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
+func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
 	if err != nil {
-		if c.consumeAll {
+		if d.consumeAll {
 			uid := uuid.NewString()
-			c.log.Debug("get raw payload", zap.String("assigned ID", uid))
+			d.log.Debug("get raw payload", zap.String("assigned ID", uid))
 
 			if isJSONEncoded(data) != nil {
 				data, err = json.Marshal(data)
@@ -171,11 +171,11 @@ func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 					Delay:     0,
 					AutoAck:   false,
 					id:        id,
-					requeueFn: c.handleItem,
+					requeueFn: d.handleItem,
 				},
 			}
 
-			out.Options.conn.Store(c.pool.connTS.Load())
+			out.Options.conn.Store(d.pool.connTS.Load())
 
 			return nil
 		}
@@ -183,12 +183,12 @@ func (c *Consumer) unpack(id uint64, data []byte, out *Item) error {
 	}
 
 	if out.Options.Priority == 0 {
-		out.Options.Priority = c.priority
+		out.Options.Priority = d.priority
 	}
 
-	out.Options.conn.Store(c.pool.connTS.Load())
+	out.Options.conn.Store(d.pool.connTS.Load())
 	out.Options.id = id
-	out.Options.requeueFn = c.handleItem
+	out.Options.requeueFn = d.handleItem
 
 	return nil
 }

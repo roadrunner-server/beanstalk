@@ -8,49 +8,49 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *Consumer) listen() {
+func (d *Driver) listen() {
 	for {
 		select {
-		case <-c.stopCh:
-			c.log.Debug("beanstalk listener stopped")
+		case <-d.stopCh:
+			d.log.Debug("beanstalk listener stopped")
 			return
 		default:
-			id, body, err := c.pool.Reserve(c.reserveTimeout)
+			id, body, err := d.pool.Reserve(d.reserveTimeout)
 			if err != nil {
 				// error isn't wrapped
 				if errB, ok := err.(beanstalk.ConnError); ok { //nolint:errorlint
 					if stderr.Is(errB.Err, beanstalk.ErrTimeout) {
-						c.log.Info("beanstalk reserve timeout", zap.Error(errB))
+						d.log.Info("beanstalk reserve timeout", zap.Error(errB))
 						continue
 					}
 				}
 
 				// in case of other error - continue
-				c.log.Warn("beanstalk reserve", zap.Error(err))
+				d.log.Warn("beanstalk reserve", zap.Error(err))
 				continue
 			}
 
 			item := &Item{}
-			err = c.unpack(id, body, item)
+			err = d.unpack(id, body, item)
 			if err != nil {
-				c.log.Error("beanstalk unpack item", zap.Error(err))
-				errDel := c.pool.Delete(context.Background(), id)
+				d.log.Error("beanstalk unpack item", zap.Error(err))
+				errDel := d.pool.Delete(context.Background(), id)
 				if errDel != nil {
-					c.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
+					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
 				}
 				continue
 			}
 
 			if item.Options.AutoAck {
-				c.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
-				errDel := c.pool.Delete(context.Background(), id)
+				d.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
+				errDel := d.pool.Delete(context.Background(), id)
 				if errDel != nil {
-					c.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
+					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
 				}
 			}
 
 			// insert job into the priority queue
-			c.pq.Insert(item)
+			d.pq.Insert(item)
 		}
 	}
 }
