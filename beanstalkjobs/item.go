@@ -75,6 +75,10 @@ func (i *Item) Body() []byte {
 	return utils.AsBytes(i.Payload)
 }
 
+func (i *Item) Metadata() map[string][]string {
+	return i.Headers
+}
+
 // Context packs job context (job, id) into binary payload.
 // Not used in the sqs, MessageAttributes used instead
 func (i *Item) Context() ([]byte, error) {
@@ -174,9 +178,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 				Headers: nil,
 				Options: &Options{
 					Priority:  10,
-					Pipeline:  auto,
-					Delay:     0,
-					AutoAck:   false,
+					Pipeline:  (*d.pipeline.Load()).Name(),
 					id:        id,
 					requeueFn: d.handleItem,
 				},

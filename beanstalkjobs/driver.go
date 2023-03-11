@@ -13,10 +13,18 @@ import (
 	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
+	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
-const pluginName string = "beanstalk"
+const (
+	pluginName string = "beanstalk"
+	tracerName string = "jobs"
+)
 
 var _ jobs.Driver = (*Driver)(nil)
 
@@ -31,6 +39,8 @@ type Driver struct {
 	log        *zap.Logger
 	pq         pq.Queue
 	consumeAll bool
+	tracer     *sdktrace.TracerProvider
+	prop       propagation.TextMapPropagator
 
 	pipeline  atomic.Pointer[jobs.Pipeline]
 	listeners uint32
@@ -50,8 +60,15 @@ type Driver struct {
 	stopCh chan struct{}
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	// PARSE CONFIGURATION -------
 	var conf config
@@ -90,6 +107,8 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pip
 
 	// initialize job Driver
 	jc := &Driver{
+		tracer:         tracer,
+		prop:           prop,
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -112,8 +131,15 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pip
 	return jc, nil
 }
 
-func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	// PARSE CONFIGURATION -------
 	var conf config
@@ -142,6 +168,8 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 
 	// initialize job Driver
 	jc := &Driver{
+		tracer:         tracer,
+		prop:           prop,
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
@@ -163,9 +191,13 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 
 	return jc, nil
 }
+
 func (d *Driver) Push(ctx context.Context, jb jobs.Job) error {
 	const op = errors.Op("beanstalk_push")
 	// check if the pipeline registered
+
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_push")
+	defer span.End()
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
@@ -184,6 +216,10 @@ func (d *Driver) Push(ctx context.Context, jb jobs.Job) error {
 // State https://github.com/beanstalkd/beanstalkd/blob/master/doc/protocol.txt#L514
 func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	const op = errors.Op("beanstalk_state")
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_state")
+	defer span.End()
+
 	stat, err := d.pool.Stats(ctx)
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -219,9 +255,12 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	return out, nil
 }
 
-func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
+func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	const op = errors.Op("beanstalk_run")
-	start := time.Now()
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_run")
+	defer span.End()
 
 	// load atomic value
 	// check if the pipeline registered
@@ -238,9 +277,12 @@ func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (d *Driver) Stop(context.Context) error {
-	start := time.Now()
+func (d *Driver) Stop(ctx context.Context) error {
+	start := time.Now().UTC()
 	pipe := *d.pipeline.Load()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_stop")
+	defer span.End()
 
 	if atomic.LoadUint32(&d.listeners) == 1 {
 		d.stopCh <- struct{}{}
@@ -253,8 +295,12 @@ func (d *Driver) Stop(context.Context) error {
 	return nil
 }
 
-func (d *Driver) Pause(_ context.Context, p string) error {
-	start := time.Now()
+func (d *Driver) Pause(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_pause")
+	defer span.End()
+
 	// load atomic value
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
@@ -275,8 +321,12 @@ func (d *Driver) Pause(_ context.Context, p string) error {
 	return nil
 }
 
-func (d *Driver) Resume(_ context.Context, p string) error {
-	start := time.Now()
+func (d *Driver) Resume(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_resume")
+	defer span.End()
+
 	// load atomic value
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
@@ -301,6 +351,8 @@ func (d *Driver) Resume(_ context.Context, p string) error {
 
 func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	const op = errors.Op("beanstalk_handle_item")
+
+	d.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
 
 	bb := new(bytes.Buffer)
 	bb.Grow(64)
