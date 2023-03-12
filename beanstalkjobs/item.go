@@ -175,7 +175,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 				Job:     auto,
 				Ident:   uid,
 				Payload: utils.AsString(data),
-				Headers: nil,
+				Headers: make(map[string][]string, 2),
 				Options: &Options{
 					Priority:  10,
 					Pipeline:  (*d.pipeline.Load()).Name(),
