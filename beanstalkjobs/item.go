@@ -22,16 +22,12 @@ const (
 type Item struct {
 	// Job contains pluginName of job broker (usually PHP class).
 	Job string `json:"job"`
-
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
-
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload string `json:"payload"`
-
 	// Headers with key-values pairs
 	Headers map[string][]string `json:"headers"`
-
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
@@ -41,15 +37,14 @@ type Options struct {
 	// Priority is job priority, default - 10
 	// pointer to distinguish 0 as a priority and nil as priority not set
 	Priority int64 `json:"priority"`
-
 	// Pipeline manually specified pipeline.
 	Pipeline string `json:"pipeline,omitempty"`
-
 	// Delay defines time duration to delay execution for. Defaults to none.
 	Delay int64 `json:"delay,omitempty"`
-
 	// AutoAck option
 	AutoAck bool `json:"auto_ack"`
+	// Beanstalk Tube
+	Queue string `json:"queue,omitempty"`
 
 	// Private ================
 	id        uint64
@@ -88,12 +83,14 @@ func (i *Item) Context() ([]byte, error) {
 			Job      string              `json:"job"`
 			Driver   string              `json:"driver"`
 			Headers  map[string][]string `json:"headers"`
+			Queue    string              `json:"queue,omitempty"`
 			Pipeline string              `json:"pipeline"`
 		}{
 			ID:       i.Ident,
 			Job:      i.Job,
 			Driver:   pluginName,
 			Headers:  i.Headers,
+			Queue:    i.Options.Queue,
 			Pipeline: i.Options.Pipeline,
 		},
 	)
@@ -179,6 +176,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 				Options: &Options{
 					Priority:  10,
 					Pipeline:  (*d.pipeline.Load()).Name(),
+					Queue:     d.tName,
 					id:        id,
 					requeueFn: d.handleItem,
 				},
@@ -195,6 +193,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 		out.Options.Priority = d.priority
 	}
 
+	out.Options.Queue = d.tName
 	out.Options.conn.Store(d.pool.connTS.Load())
 	out.Options.id = id
 	out.Options.requeueFn = d.handleItem
