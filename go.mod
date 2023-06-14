@@ -18,6 +18,11 @@ require (
 	go.uber.org/zap v1.24.0
 )
 
+replace (
+	github.com/roadrunner-server/api/v4 => ../../api
+	github.com/roadrunner-server/sdk/v4 => ../../sdk
+)
+
 require (
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

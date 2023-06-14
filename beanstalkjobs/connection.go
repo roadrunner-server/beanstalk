@@ -123,7 +123,7 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 	return nil
 }
 
-func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
+func (cp *ConnPool) Stats(context.Context) (map[string]string, error) {
 	cp.RLock()
 	defer cp.RUnlock()
 
@@ -143,9 +143,9 @@ func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 // Stop and close the connections
 func (cp *ConnPool) Stop() {
 	cp.Lock()
-	defer cp.Unlock()
 	_ = cp.connTS.Load().Close()
 	_ = cp.connT.Load().Close()
+	cp.Unlock()
 }
 
 func (cp *ConnPool) redial() error {
