@@ -9,8 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
@@ -37,7 +36,7 @@ type Configurer interface {
 
 type Driver struct {
 	log        *zap.Logger
-	pq         pq.Queue
+	pq         jobs.Queue
 	consumeAll bool
 	tracer     *sdktrace.TracerProvider
 	prop       propagation.TextMapPropagator
@@ -60,7 +59,7 @@ type Driver struct {
 	stopCh chan struct{}
 }
 
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -131,7 +130,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	return jc, nil
 }
 
-func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -192,7 +191,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 	return jc, nil
 }
 
-func (d *Driver) Push(ctx context.Context, jb jobs.Job) error {
+func (d *Driver) Push(ctx context.Context, jb jobs.Message) error {
 	const op = errors.Op("beanstalk_push")
 	// check if the pipeline registered
 
@@ -201,8 +200,8 @@ func (d *Driver) Push(ctx context.Context, jb jobs.Job) error {
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
-	if pipe.Name() != jb.Pipeline() {
-		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.Pipeline(), pipe.Name()))
+	if pipe.Name() != jb.GroupID() {
+		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", jb.GroupID(), pipe.Name()))
 	}
 
 	err := d.handleItem(ctx, fromJob(jb))
@@ -352,7 +351,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	const op = errors.Op("beanstalk_handle_item")
 
-	d.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
+	d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
 
 	bb := new(bytes.Buffer)
 	bb.Grow(64)

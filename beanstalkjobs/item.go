@@ -10,7 +10,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.uber.org/zap"
 )
@@ -27,7 +27,7 @@ type Item struct {
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload string `json:"payload"`
 	// Headers with key-values pairs
-	Headers map[string][]string `json:"headers"`
+	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
@@ -65,13 +65,17 @@ func (i *Item) Priority() int64 {
 	return i.Options.Priority
 }
 
+func (i *Item) GroupID() string {
+	return i.Options.Pipeline
+}
+
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
 	return utils.AsBytes(i.Payload)
 }
 
-func (i *Item) Metadata() map[string][]string {
-	return i.Headers
+func (i *Item) Headers() map[string][]string {
+	return i.headers
 }
 
 // Context packs job context (job, id) into binary payload.
@@ -89,7 +93,7 @@ func (i *Item) Context() ([]byte, error) {
 			ID:       i.Ident,
 			Job:      i.Job,
 			Driver:   pluginName,
-			Headers:  i.Headers,
+			Headers:  i.headers,
 			Queue:    i.Options.Queue,
 			Pipeline: i.Options.Pipeline,
 		},
@@ -119,7 +123,7 @@ func (i *Item) Nack() error {
 func (i *Item) Requeue(headers map[string][]string, delay int64) error {
 	// overwrite the delay
 	i.Options.Delay = delay
-	i.Headers = headers
+	i.headers = headers
 
 	err := i.Options.requeueFn(context.Background(), i)
 	if err != nil {
@@ -139,16 +143,16 @@ func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
-func fromJob(job jobs.Job) *Item {
+func fromJob(job jobs.Message) *Item {
 	return &Item{
 		Job:     job.Name(),
 		Ident:   job.ID(),
 		Payload: job.Payload(),
-		Headers: job.Headers(),
+		headers: job.Headers(),
 		Options: &Options{
 			AutoAck:  job.AutoAck(),
 			Priority: job.Priority(),
-			Pipeline: job.Pipeline(),
+			Pipeline: job.GroupID(),
 			Delay:    job.Delay(),
 		},
 	}
@@ -172,7 +176,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 				Job:     auto,
 				Ident:   uid,
 				Payload: utils.AsString(data),
-				Headers: make(map[string][]string, 2),
+				headers: make(map[string][]string, 2),
 				Options: &Options{
 					Priority:  10,
 					Pipeline:  (*d.pipeline.Load()).Name(),
