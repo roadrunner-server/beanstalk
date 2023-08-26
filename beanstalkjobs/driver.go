@@ -9,9 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v4/utils"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -35,11 +34,10 @@ type Configurer interface {
 }
 
 type Driver struct {
-	log        *zap.Logger
-	pq         jobs.Queue
-	consumeAll bool
-	tracer     *sdktrace.TracerProvider
-	prop       propagation.TextMapPropagator
+	log    *zap.Logger
+	pq     jobs.Queue
+	tracer *sdktrace.TracerProvider
+	prop   propagation.TextMapPropagator
 
 	pipeline  atomic.Pointer[jobs.Pipeline]
 	listeners uint32
@@ -113,7 +111,6 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		pool:           cPool,
 		network:        dsn[0],
 		addr:           dsn[1],
-		consumeAll:     conf.ConsumeAll,
 		tout:           conf.Timeout,
 		tName:          conf.Tube,
 		reserveTimeout: conf.ReserveTimeout,
@@ -175,10 +172,9 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		network:        dsn[0],
 		addr:           dsn[1],
 		tout:           conf.Timeout,
-		consumeAll:     pipe.Bool(consumeAll, false),
 		tName:          pipe.String(tube, "default"),
 		reserveTimeout: time.Second * time.Duration(pipe.Int(reserveTimeout, 5)),
-		tubePriority:   utils.Uint32(uint32(pipe.Int(tubePriority, 1))),
+		tubePriority:   toPtr(uint32(pipe.Int(tubePriority, 1))),
 		priority:       pipe.Priority(),
 
 		// buffered with two because jobs root plugin can call Stop at the same time as Pause

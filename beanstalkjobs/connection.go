@@ -2,6 +2,7 @@ package beanstalkjobs
 
 import (
 	"context"
+	stderr "errors"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -201,38 +202,44 @@ func (cp *ConnPool) redial() error {
 func (cp *ConnPool) checkAndRedial(err error) error {
 	const op = errors.Op("connection_pool_check_redial")
 	const EOF string = "EOF"
-	switch et := err.(type) { //nolint:gocritic,errorlint
-	// check if the error
-	case beanstalk.ConnError:
-		// error is not wrapped
-		switch bErr := et.Err.(type) { //nolint:errorlint
-		case *net.OpError:
+	var et beanstalk.ConnError
+	var bErr *net.OpError
+
+	if stderr.As(err, &et) {
+		if stderr.As(et.Err, &bErr) {
+			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et))
 			cp.RUnlock()
 			errR := cp.redial()
 			cp.RLock()
 			// if redial failed - return
 			if errR != nil {
+				cp.log.Error("beanstalk redial failed", zap.Error(errR))
 				return errors.E(op, errors.Errorf("%v:%v", bErr, errR))
 			}
 
+			cp.log.Debug("beanstalk redial was successful")
 			// if redial was successful -> continue listening
 			return nil
-		default:
-			if et.Err.Error() == EOF {
-				// if error is related to the broken connection - redial
-				cp.RUnlock()
-				errR := cp.redial()
-				cp.RLock()
-				// if redial failed - return
-				if errR != nil {
-					return errors.E(op, errors.Errorf("%v:%v", err, errR))
-				}
-				// if redial was successful -> continue listening
-				return nil
+		}
+
+		if et.Err.Error() == EOF {
+			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et.Err))
+			// if error is related to the broken connection - redial
+			cp.RUnlock()
+			errR := cp.redial()
+			cp.RLock()
+			// if redial failed - return
+			if errR != nil {
+				cp.log.Error("beanstalk redial failed", zap.Error(errR))
+				return errors.E(op, errors.Errorf("%v:%v", err, errR))
 			}
+
+			cp.log.Debug("beanstalk redial was successful")
+			// if redial was successful -> continue listening
+			return nil
 		}
 	}
 
-	// return initial error
+	cp.log.Error("beanstalk connection error, unknown type of error", zap.Error(err))
 	return err
 }

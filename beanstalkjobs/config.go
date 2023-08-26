@@ -2,8 +2,6 @@ package beanstalkjobs
 
 import (
 	"time"
-
-	"github.com/roadrunner-server/sdk/v4/utils"
 )
 
 const (
@@ -15,10 +13,8 @@ const (
 
 type config struct {
 	// global
-	Addr       string        `mapstructure:"addr"`
-	Timeout    time.Duration `mapstructure:"timeout"`
-	ConsumeAll bool          `mapstructure:"consume_all"`
-
+	Addr    string        `mapstructure:"addr"`
+	Timeout time.Duration `mapstructure:"timeout"`
 	// local
 	PipePriority   int64         `mapstructure:"priority"`
 	TubePriority   *uint32       `mapstructure:"tube_priority"`
@@ -36,7 +32,7 @@ func (c *config) InitDefault() {
 	}
 
 	if c.TubePriority == nil {
-		c.TubePriority = utils.Uint32(0)
+		c.TubePriority = toPtr(uint32(0))
 	}
 
 	if c.PipePriority == 0 {
@@ -50,4 +46,8 @@ func (c *config) InitDefault() {
 	if c.Timeout == 0 {
 		c.Timeout = time.Second * 30
 	}
+}
+
+func toPtr[T any](v T) *T {
+	return &v
 }

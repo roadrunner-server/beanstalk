@@ -10,8 +10,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
-	"github.com/roadrunner-server/sdk/v4/utils"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +24,7 @@ type Item struct {
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
-	Payload string `json:"payload"`
+	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
@@ -71,7 +70,7 @@ func (i *Item) GroupID() string {
 
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
-	return utils.AsBytes(i.Payload)
+	return i.Payload
 }
 
 func (i *Item) Headers() map[string][]string {
@@ -158,39 +157,29 @@ func fromJob(job jobs.Message) *Item {
 	}
 }
 
-func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
+func (d *Driver) unpack(id uint64, data []byte, out *Item) {
+	// try to decode the item
 	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
+	// if not - fill the item with default values (or values we already have)
 	if err != nil {
-		if d.consumeAll {
-			uid := uuid.NewString()
-			d.log.Debug("get raw payload", zap.String("assigned ID", uid))
+		d.log.Debug("failed to unpack the item", zap.Error(err))
 
-			if isJSONEncoded(data) != nil {
-				data, err = json.Marshal(data)
-				if err != nil {
-					return err
-				}
-			}
-
-			*out = Item{
-				Job:     auto,
-				Ident:   uid,
-				Payload: utils.AsString(data),
-				headers: make(map[string][]string, 2),
-				Options: &Options{
-					Priority:  10,
-					Pipeline:  (*d.pipeline.Load()).Name(),
-					Queue:     d.tName,
-					id:        id,
-					requeueFn: d.handleItem,
-				},
-			}
-
-			out.Options.conn.Store(d.pool.connTS.Load())
-
-			return nil
+		*out = Item{
+			Job:     auto,
+			Ident:   uuid.NewString(),
+			Payload: data,
+			headers: make(map[string][]string, 2),
+			Options: &Options{
+				Priority:  (*d.pipeline.Load()).Priority(),
+				Pipeline:  (*d.pipeline.Load()).Name(),
+				Queue:     d.tName,
+				id:        id,
+				requeueFn: d.handleItem,
+			},
 		}
-		return err
+
+		out.Options.conn.Store(d.pool.connTS.Load())
+		return
 	}
 
 	if out.Options.Priority == 0 {
@@ -201,11 +190,4 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) error {
 	out.Options.conn.Store(d.pool.connTS.Load())
 	out.Options.id = id
 	out.Options.requeueFn = d.handleItem
-
-	return nil
-}
-
-func isJSONEncoded(data []byte) error {
-	var a any
-	return json.Unmarshal(data, &a)
 }
