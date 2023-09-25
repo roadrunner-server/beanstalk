@@ -1,4 +1,4 @@
-name: amqp
+name: beanstalk
 
 on:
   push:
