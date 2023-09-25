@@ -11,8 +11,8 @@ on:
       - stable
 
 jobs:
-  amqp_test:
-    name: RabbitMQ plugin (Go ${{ matrix.go }}, PHP ${{ matrix.php }}, OS ${{matrix.os}})
+  beanstalk_test:
+    name: Beanstalk plugin (Go ${{ matrix.go }}, PHP ${{ matrix.php }}, OS ${{matrix.os}})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -61,6 +61,7 @@ jobs:
 
       - name: Run golang tests with coverage
         run: |
+          cd tests
           docker build -t beanstalk -f env/Dockerfile-beanstalkd.yaml .
           docker run -d -p 127.0.0.1:11300:11300 beanstalk
           sleep 10
