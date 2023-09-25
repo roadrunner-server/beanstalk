@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.1
 
 require (
+	github.com/Shopify/toxiproxy/v2 v2.6.0
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
@@ -24,9 +25,7 @@ require (
 	go.uber.org/zap v1.26.0
 )
 
-replace (
-	github.com/roadrunner-server/beanstalk/v4 => ../
-)
+replace github.com/roadrunner-server/beanstalk/v4 => ../
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
