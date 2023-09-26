@@ -762,6 +762,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c/go.mod h1:X0CRv0ky0k6m906ixxpzmDRLvX58TFUKS2eePweuyxk=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+github.com/Shopify/toxiproxy/v2 v2.6.0 h1:qAHKkHlGuB31epYq/nE7CJsdVVn8Nn88vBRuRhNWC9g=
+github.com/Shopify/toxiproxy/v2 v2.6.0/go.mod h1:RQ4MED2Cw96l+VbfXq85MXYSwVyXoZvaZKkVznD+yrc=
 github.com/ajstarks/deck v0.0.0-20200831202436-30c9fc6549a9/go.mod h1:JynElWSGnm/4RlzPXRlREEwqTHAN3T56Bv2ITsFT3gY=
 github.com/ajstarks/deck/generate v0.0.0-20210309230005-c3f852c02e19/go.mod h1:T13YZdzov6OU0A1+RfKZiZN9ca6VeKdBdyDV+BY97Tk=
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
@@ -1085,8 +1087,6 @@ github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qq
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/roadrunner-server/api/v4 v4.8.0 h1:wsANwein0dD3q9OQi8L6XGjgEkEn/23mAJ4ZphavfLM=
 github.com/roadrunner-server/api/v4 v4.8.0/go.mod h1:FhCdSyHWBJfyZ0yuggVE72WYKcmAOsGuJbC3dvzaMOg=
-github.com/roadrunner-server/beanstalk/v4 v4.5.3 h1:VlJ17+JD7Dsxl+T6ox3Xui0WT/910ltkofu4HWNJO/I=
-github.com/roadrunner-server/beanstalk/v4 v4.5.3/go.mod h1:fC1c/4j5t8T11wr5VvGYRu/2AeIeqh8KVy7mtyxCVzE=
 github.com/roadrunner-server/config/v4 v4.4.3 h1:uHkAS0ZwenZ4pUlSL6qCdQf9LMXn7Yg6TcofAAy9Nbw=
 github.com/roadrunner-server/config/v4 v4.4.3/go.mod h1:wluEKgONdRJlo3ZDf7qWWrPOF8U6hZOz1nYMeYAflW0=
 github.com/roadrunner-server/endure/v2 v2.4.2 h1:aFnPc321l5HDzE2mN5wwfksJ40lgXwfU3RSqdS1LyUQ=
