@@ -4,7 +4,6 @@ import (
 	"context"
 	stderr "errors"
 
-	"github.com/beanstalkd/go-beanstalk"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
@@ -21,17 +20,13 @@ func (d *Driver) listen() {
 		default:
 			id, body, err := d.pool.Reserve(d.reserveTimeout)
 			if err != nil {
-				// error isn't wrapped
-				var errB beanstalk.ConnError
-				if stderr.As(err, &errB) {
-					if stderr.Is(errB.Err, beanstalk.ErrTimeout) {
-						d.log.Info("beanstalk reserve timeout", zap.Error(errB))
-						continue
-					}
+				// this is not an error, but just a wait timeout for the new job
+				if stderr.Is(err, errBeanstalkTimeout) {
+					continue
 				}
 
-				// in case of other error - continue
-				d.log.Warn("beanstalk reserve", zap.Error(err))
+				// in case of another error log and continue
+				d.log.Error("beanstalk listen", zap.Error(err))
 				continue
 			}
 

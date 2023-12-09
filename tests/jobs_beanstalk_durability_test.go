@@ -36,7 +36,7 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-durability-redial.yaml",
 		Prefix:  "rr",
 	}

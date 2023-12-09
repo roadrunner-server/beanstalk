@@ -13,7 +13,7 @@ beanstalk:
   timeout: 10s
 
 logs:
-  level: info
+  level: debug
   encoding: console
   mode: development
 
