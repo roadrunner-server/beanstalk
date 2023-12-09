@@ -14,6 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var errBeanstalkTimeout = stderr.New("beanstalk timeout")
+
 type ConnPool struct {
 	sync.RWMutex
 
@@ -96,7 +98,7 @@ func (cp *ConnPool) Reserve(reserveTimeout time.Duration) (uint64, []byte, error
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
-			return 0, nil, errors.Errorf("err: %s\nerr redial: %s", err, errN)
+			return 0, nil, stderr.Join(err, errN)
 		}
 
 		// retry Reserve only when we redialed
@@ -118,13 +120,13 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 			return errors.Errorf("err: %s\nerr redial: %s", err, errN)
 		}
 
-		// retry Delete only when we redialed
+		// retry, Delete only when we redialed
 		return cp.connTS.Load().Delete(id)
 	}
 	return nil
 }
 
-func (cp *ConnPool) Stats(context.Context) (map[string]string, error) {
+func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 	cp.RLock()
 	defer cp.RUnlock()
 
@@ -206,7 +208,8 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 	var bErr *net.OpError
 
 	if stderr.As(err, &et) {
-		if stderr.As(et.Err, &bErr) {
+		switch {
+		case stderr.As(et.Err, &bErr):
 			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et))
 			cp.RUnlock()
 			errR := cp.redial()
@@ -220,9 +223,7 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 			cp.log.Debug("beanstalk redial was successful")
 			// if redial was successful -> continue listening
 			return nil
-		}
-
-		if et.Err.Error() == EOF {
+		case et.Err.Error() == EOF:
 			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et.Err))
 			// if error is related to the broken connection - redial
 			cp.RUnlock()
@@ -237,6 +238,9 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 			cp.log.Debug("beanstalk redial was successful")
 			// if redial was successful -> continue listening
 			return nil
+		case et.Op == "reserve-with-timeout" && (et.Err.Error() == "deadline soon" || et.Err.Error() == "timeout"):
+			cp.log.Debug("connection deadline reached, continue listening", zap.Error(et))
+			return errBeanstalkTimeout
 		}
 	}
 

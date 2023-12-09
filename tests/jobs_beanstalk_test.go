@@ -39,20 +39,20 @@ import (
 )
 
 func TestBeanstalkInit(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*2))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-init.yaml",
 		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
 	err := cont.RegisterAll(
+		l,
 		cfg,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
-		l,
 		&jobs.Plugin{},
 		&resetter.Plugin{},
 		&informer.Plugin{},
@@ -381,7 +381,7 @@ func TestBeanstalkStats(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-declare.yaml",
 		Prefix:  "rr",
 	}
@@ -498,7 +498,7 @@ func TestBeanstalkDeclare(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-declare.yaml",
 		Prefix:  "rr",
 	}
@@ -578,7 +578,7 @@ func TestBeanstalkJobsError(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-jobs-err.yaml",
 		Prefix:  "rr",
 	}
@@ -659,7 +659,7 @@ func TestBeanstalkNoGlobalSection(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.0",
+		Version: "2023.3.0",
 		Path:    "configs/.rr-no-global.yaml",
 		Prefix:  "rr",
 	}
