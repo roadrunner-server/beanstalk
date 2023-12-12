@@ -182,6 +182,10 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) {
 		return
 	}
 
+	if out.Options == nil {
+		out.Options = &Options{}
+	}
+
 	if out.Options.Priority == 0 {
 		out.Options.Priority = d.priority
 	}
