@@ -8,10 +8,10 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/goccy/go-json v0.10.2
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.10.0
 	github.com/roadrunner-server/endure/v2 v2.4.3
-	github.com/roadrunner-server/errors v1.3.0
+	github.com/roadrunner-server/errors v1.4.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.22.0
 	go.opentelemetry.io/otel v1.22.0
 	go.opentelemetry.io/otel/sdk v1.22.0
