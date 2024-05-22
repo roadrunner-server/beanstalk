@@ -5,7 +5,7 @@ go 1.22.3
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/goccy/go-json v0.10.2
+	github.com/goccy/go-json v0.10.3
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.12.0
 	github.com/roadrunner-server/endure/v2 v2.4.4
