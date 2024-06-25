@@ -9,16 +9,16 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.13.0
 	github.com/roadrunner-server/beanstalk/v4 v4.6.7
-	github.com/roadrunner-server/config/v4 v4.9.2
+	github.com/roadrunner-server/config/v4 v4.9.3
 	github.com/roadrunner-server/endure/v2 v2.4.5
 	github.com/roadrunner-server/goridge/v3 v3.8.2
-	github.com/roadrunner-server/informer/v4 v4.5.4
-	github.com/roadrunner-server/jobs/v4 v4.9.4
-	github.com/roadrunner-server/logger/v4 v4.4.4
-	github.com/roadrunner-server/otel/v4 v4.5.4
-	github.com/roadrunner-server/resetter/v4 v4.3.4
-	github.com/roadrunner-server/rpc/v4 v4.4.4
-	github.com/roadrunner-server/server/v4 v4.8.4
+	github.com/roadrunner-server/informer/v4 v4.5.5
+	github.com/roadrunner-server/jobs/v4 v4.9.5
+	github.com/roadrunner-server/logger/v4 v4.4.5
+	github.com/roadrunner-server/otel/v4 v4.5.5
+	github.com/roadrunner-server/resetter/v4 v4.3.5
+	github.com/roadrunner-server/rpc/v4 v4.4.5
+	github.com/roadrunner-server/server/v4 v4.8.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 )
