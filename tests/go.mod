@@ -13,7 +13,7 @@ require (
 	github.com/roadrunner-server/endure/v2 v2.4.5
 	github.com/roadrunner-server/goridge/v3 v3.8.2
 	github.com/roadrunner-server/informer/v4 v4.5.5
-	github.com/roadrunner-server/jobs/v4 v4.9.5
+	github.com/roadrunner-server/jobs/v4 v4.10.0
 	github.com/roadrunner-server/logger/v4 v4.4.5
 	github.com/roadrunner-server/otel/v4 v4.5.5
 	github.com/roadrunner-server/resetter/v4 v4.3.5
