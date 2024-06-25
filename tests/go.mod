@@ -7,7 +7,7 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/goccy/go-json v0.10.3
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.12.0
+	github.com/roadrunner-server/api/v4 v4.13.0
 	github.com/roadrunner-server/beanstalk/v4 v4.6.7
 	github.com/roadrunner-server/config/v4 v4.9.2
 	github.com/roadrunner-server/endure/v2 v2.4.5
@@ -96,8 +96,8 @@ require (
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240617180043-68d350f18fd4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240617180043-68d350f18fd4 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240624140628-dc46fd24d27d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240624140628-dc46fd24d27d // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
