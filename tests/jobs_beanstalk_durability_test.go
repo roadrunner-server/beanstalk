@@ -10,7 +10,7 @@ import (
 	"time"
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
-	"github.com/roadrunner-server/beanstalk/v4"
+	"github.com/roadrunner-server/beanstalk/v5"
 	"github.com/roadrunner-server/config/v4"
 	"github.com/roadrunner-server/endure/v2"
 	"github.com/roadrunner-server/informer/v4"

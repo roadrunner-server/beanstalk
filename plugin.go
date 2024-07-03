@@ -2,7 +2,7 @@ package beanstalk
 
 import (
 	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
-	"github.com/roadrunner-server/beanstalk/v4/beanstalkjobs"
+	"github.com/roadrunner-server/beanstalk/v5/beanstalkjobs"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
