@@ -286,6 +286,9 @@ func (d *Driver) Stop(ctx context.Context) error {
 	// release associated resources
 	d.pool.Stop()
 
+	// remove all pending JOBS associated with the pipeline
+	_ = d.pq.Remove(pipe.Name())
+
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 	return nil
 }
