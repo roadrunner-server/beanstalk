@@ -29,7 +29,7 @@ var _ jobs.Driver = (*Driver)(nil)
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshals it into a Struct.
 	UnmarshalKey(name string, out any) error
-	// Has checks if config section exists.
+	// Has checks if a config section exists.
 	Has(name string) bool
 }
 
@@ -285,6 +285,9 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	// release associated resources
 	d.pool.Stop()
+
+	// remove all pending JOBS associated with the pipeline
+	_ = d.pq.Remove(pipe.Name())
 
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 	return nil

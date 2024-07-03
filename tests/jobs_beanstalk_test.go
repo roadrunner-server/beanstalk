@@ -22,7 +22,7 @@ import (
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v4"
+	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v5"
 	"github.com/roadrunner-server/config/v4"
 	"github.com/roadrunner-server/endure/v2"
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"

@@ -225,7 +225,7 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 			return nil
 		case et.Err.Error() == EOF:
 			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et.Err))
-			// if error is related to the broken connection - redial
+			// if the error is related to the broken connection - redial
 			cp.RUnlock()
 			errR := cp.redial()
 			cp.RLock()
