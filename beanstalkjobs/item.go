@@ -22,7 +22,7 @@ const (
 )
 
 type Item struct {
-	// Job contains pluginName of job broker (usually PHP class).
+	// Job contains the pluginName of job broker (usually PHP class).
 	Job string `json:"job"`
 	// Ident is a unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
@@ -30,14 +30,14 @@ type Item struct {
 	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
-	// Options contains set of PipelineOptions specific to job execution. Can be empty.
+	// Options contain a set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
 
-// Options carry information about how to handle given job.
+// Options carry information about how to handle a given job.
 type Options struct {
 	// Priority is job priority, default - 10
-	// pointer to distinguish 0 as a priority and nil as priority not set
+	// pointer to distinguish 0 as a priority and nil as a priority not set
 	Priority int64 `json:"priority"`
 	// Pipeline manually specified pipeline.
 	Pipeline string `json:"pipeline,omitempty"`
@@ -54,7 +54,7 @@ type Options struct {
 	requeueFn func(context.Context, *Item) error
 }
 
-// DelayDuration returns delay duration in a form of time.Duration.
+// DelayDuration returns delay duration in the form of time.Duration.
 func (o *Options) DelayDuration() time.Duration {
 	return time.Second * time.Duration(o.Delay)
 }
@@ -151,7 +151,7 @@ func (i *Item) Requeue(headers map[string][]string, delay int) error {
 		return err
 	}
 
-	// delete old job
+	// delete an old job
 	err = i.Options.conn.Load().Delete(i.Options.id)
 	if err != nil {
 		return err

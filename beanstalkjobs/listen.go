@@ -25,7 +25,7 @@ func (d *Driver) listen() {
 					continue
 				}
 
-				// in case of another error log and continue
+				// in case of another error, log and continue
 				d.log.Error("beanstalk listen", zap.Error(err))
 				continue
 			}
@@ -51,7 +51,7 @@ func (d *Driver) listen() {
 			}
 
 			d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
-			// insert job into the priority queue
+			// insert a job into the priority queue
 			d.pq.Insert(item)
 			span.End()
 		}
