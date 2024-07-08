@@ -11,13 +11,13 @@ import (
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
 	"github.com/roadrunner-server/beanstalk/v5"
-	"github.com/roadrunner-server/config/v4"
+	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
-	"github.com/roadrunner-server/informer/v4"
-	"github.com/roadrunner-server/jobs/v4"
-	"github.com/roadrunner-server/logger/v4"
-	"github.com/roadrunner-server/resetter/v4"
-	"github.com/roadrunner-server/server/v4"
+	"github.com/roadrunner-server/informer/v5"
+	"github.com/roadrunner-server/jobs/v5"
+	"github.com/roadrunner-server/logger/v5"
+	"github.com/roadrunner-server/resetter/v5"
+	"github.com/roadrunner-server/server/v5"
 
 	"tests/helpers"
 
