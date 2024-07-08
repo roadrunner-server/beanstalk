@@ -206,7 +206,7 @@ func TestBeanstalkInitPQ(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	require.Equal(t, 200, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
-	require.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
+	require.Equal(t, 4, oLogger.FilterMessageSnippet("job processing was started").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("beanstalk listener stopped").Len())
 }
 
@@ -689,7 +689,7 @@ func TestBeanstalkRaw(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.10.1",
+		Version: "2024.1.0",
 		Path:    "configs/.rr-beanstalk-raw.yaml",
 		Prefix:  "rr",
 	}
