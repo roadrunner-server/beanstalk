@@ -2,6 +2,8 @@ module tests
 
 go 1.22.5
 
+toolchain go1.23rc1
+
 require (
 	github.com/Shopify/toxiproxy/v2 v2.9.0
 	github.com/beanstalkd/go-beanstalk v0.2.0
@@ -13,7 +15,7 @@ require (
 	github.com/roadrunner-server/endure/v2 v2.4.5
 	github.com/roadrunner-server/goridge/v3 v3.8.2
 	github.com/roadrunner-server/informer/v5 v5.0.0
-	github.com/roadrunner-server/jobs/v5 v5.0.0
+	github.com/roadrunner-server/jobs/v5 v5.0.1
 	github.com/roadrunner-server/logger/v5 v5.0.0
 	github.com/roadrunner-server/otel/v5 v5.0.0
 	github.com/roadrunner-server/resetter/v5 v5.0.0
@@ -102,8 +104,8 @@ require (
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240701130421-f6361c86f094 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240708141625-4ad9e859172b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240708141625-4ad9e859172b // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
