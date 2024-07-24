@@ -1,14 +1,16 @@
 module github.com/roadrunner-server/beanstalk/v5
 
-go 1.22.5
+go 1.22
+
+toolchain go1.22.5
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/goccy/go-json v0.10.3
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.15.0
-	github.com/roadrunner-server/endure/v2 v2.4.5
+	github.com/roadrunner-server/api/v4 v4.16.0
+	github.com/roadrunner-server/endure/v2 v2.4.6
 	github.com/roadrunner-server/errors v1.4.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0
 	go.opentelemetry.io/otel v1.28.0
