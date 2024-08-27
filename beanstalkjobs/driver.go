@@ -174,7 +174,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		tout:           conf.Timeout,
 		tName:          pipe.String(tube, "default"),
 		reserveTimeout: time.Second * time.Duration(pipe.Int(reserveTimeout, 5)),
-		tubePriority:   toPtr(uint32(pipe.Int(tubePriority, 1))),
+		tubePriority:   toPtr(uint32(pipe.Int(tubePriority, 1))), //nolint:gosec
 		priority:       pipe.Priority(),
 
 		// buffered with two because jobs root plugin can call Stop at the same time as Pause
