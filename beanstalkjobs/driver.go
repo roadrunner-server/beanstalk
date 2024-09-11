@@ -223,7 +223,7 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	pipe := *d.pipeline.Load()
 
 	out := &jobs.State{
-		Priority: uint64(pipe.Priority()),
+		Priority: uint64(pipe.Priority()), //nolint:gosec
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    d.tName,
