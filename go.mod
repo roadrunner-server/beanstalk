@@ -2,7 +2,7 @@ module github.com/roadrunner-server/beanstalk/v5
 
 go 1.23
 
-toolchain go1.23.1
+toolchain go1.23.2
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
