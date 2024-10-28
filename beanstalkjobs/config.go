@@ -8,7 +8,6 @@ const (
 	tubePriority   string = "tube_priority"
 	tube           string = "tube"
 	reserveTimeout string = "reserve_timeout"
-	consumeAll     string = "consume_all"
 )
 
 type config struct {

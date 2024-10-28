@@ -32,7 +32,6 @@ jobs:
       config:
         priority: 11
         tube_priority: 1
-        consume_all: true
         tube: default-raw
         reserve_timeout: 10s
 
