@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
+
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
 	"github.com/roadrunner-server/beanstalk/v5"
 	"github.com/roadrunner-server/config/v5"
