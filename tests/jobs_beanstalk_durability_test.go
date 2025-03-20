@@ -40,7 +40,6 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "2023.3.0",
 		Path:    "configs/.rr-beanstalk-durability-redial.yaml",
-		Prefix:  "rr",
 	}
 
 	err = cont.RegisterAll(
