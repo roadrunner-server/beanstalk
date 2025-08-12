@@ -14,7 +14,7 @@ updates:
     assignees:
       - "rustatian"
 
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: daily
