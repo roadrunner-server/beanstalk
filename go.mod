@@ -12,9 +12,9 @@ require (
 	github.com/roadrunner-server/api/v4 v4.23.0
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/errors v1.4.1
-	go.opentelemetry.io/contrib/propagators/jaeger v1.38.0
+	go.opentelemetry.io/contrib/propagators/jaeger v1.39.0
 	go.opentelemetry.io/otel v1.39.0
-	go.opentelemetry.io/otel/sdk v1.38.0
+	go.opentelemetry.io/otel/sdk v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 	go.uber.org/zap v1.27.1
 	google.golang.org/genproto v0.0.0-20251213004720-97cd9d5aeac2
