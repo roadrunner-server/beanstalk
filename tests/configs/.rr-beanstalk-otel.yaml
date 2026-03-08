@@ -12,20 +12,6 @@ beanstalk:
   addr: tcp://127.0.0.1:11300
   timeout: 10s
 
-logs:
-  level: info
-  encoding: console
-  mode: development
-
-otel:
-  insecure: true
-  compress: false
-  client: http
-  exporter: zipkin
-  service_name: "rr_test_beanstalk"
-  service_version: "1.0.0"
-  endpoint: "http://127.0.0.1:9411/api/v2/spans"
-
 jobs:
   num_pollers: 10
   pipeline_size: 100000
@@ -47,4 +33,3 @@ jobs:
 
   # list of pipelines to be consumed by the server, keep empty if you want to start consuming manually
   consume: [ "test-1" ]
-

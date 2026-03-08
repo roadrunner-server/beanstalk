@@ -68,7 +68,6 @@ linters:
           - dupl
           - funlen
           - gocognit
-          - scopelint
         path: _test\.go
     paths:
       - .github

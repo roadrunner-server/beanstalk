@@ -3,8 +3,8 @@ package beanstalk
 import (
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 
-	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
-	"github.com/roadrunner-server/beanstalk/v5/beanstalkjobs"
+	"github.com/roadrunner-server/api-plugins/v6/jobs"
+	"github.com/roadrunner-server/beanstalk/v6/beanstalkjobs"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"

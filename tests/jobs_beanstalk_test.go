@@ -1,14 +1,13 @@
 package tests
 
 import (
-	"io"
+	"context"
 	"log/slog"
 	"net"
-	"net/http"
 	"net/rpc"
 	"os"
 	"os/signal"
-	"sort"
+	"slices"
 	"sync"
 	"syscall"
 	"testing"
@@ -18,23 +17,24 @@ import (
 	mocklogger "tests/mock"
 
 	"github.com/beanstalkd/go-beanstalk"
-	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v5"
+	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v6"
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
 	"github.com/roadrunner-server/logger/v5"
-	"github.com/roadrunner-server/otel/v5"
 	"github.com/roadrunner-server/resetter/v5"
 	rpcPlugin "github.com/roadrunner-server/rpc/v5"
 	"github.com/roadrunner-server/server/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -42,9 +42,8 @@ func TestBeanstalkInit(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*2))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-init.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -74,12 +73,10 @@ func TestBeanstalkInit(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -103,7 +100,7 @@ func TestBeanstalkInit(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -126,9 +123,8 @@ func TestBeanstalkInitPQ(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.2.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-pq.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -158,12 +154,10 @@ func TestBeanstalkInitPQ(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -187,11 +181,11 @@ func TestBeanstalkInitPQ(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		t.Run("PushPipeline", helpers.PushToPipe("test-1-pq", false, "127.0.0.1:6601"))
 		t.Run("PushPipeline", helpers.PushToPipe("test-2-pq", false, "127.0.0.1:6601"))
 	}
@@ -214,9 +208,8 @@ func TestBeanstalkInitAutoAck(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2.9.3",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-init.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -246,12 +239,10 @@ func TestBeanstalkInitAutoAck(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -275,7 +266,7 @@ func TestBeanstalkInitAutoAck(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -298,9 +289,8 @@ func TestBeanstalkInitV27(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-init-v27.yaml",
-		Prefix:  "rr",
-		Version: "2.7.0",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -330,12 +320,10 @@ func TestBeanstalkInitV27(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -359,7 +347,7 @@ func TestBeanstalkInitV27(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -381,9 +369,8 @@ func TestBeanstalkStats(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-declare.yaml",
-		Prefix:  "rr",
 	}
 
 	err := cont.RegisterAll(
@@ -412,12 +399,10 @@ func TestBeanstalkStats(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -441,7 +426,7 @@ func TestBeanstalkStats(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -498,9 +483,8 @@ func TestBeanstalkDeclare(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-declare.yaml",
-		Prefix:  "rr",
 	}
 
 	err := cont.RegisterAll(
@@ -529,12 +513,10 @@ func TestBeanstalkDeclare(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -558,7 +540,7 @@ func TestBeanstalkDeclare(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -578,9 +560,8 @@ func TestBeanstalkJobsError(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-jobs-err.yaml",
-		Prefix:  "rr",
 	}
 
 	err := cont.RegisterAll(
@@ -609,12 +590,10 @@ func TestBeanstalkJobsError(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -638,7 +617,7 @@ func TestBeanstalkJobsError(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -659,9 +638,8 @@ func TestBeanstalkNoGlobalSection(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-no-global.yaml",
-		Prefix:  "rr",
 	}
 
 	err := cont.RegisterAll(
@@ -689,9 +667,8 @@ func TestBeanstalkRaw(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2024.1.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-raw.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -721,12 +698,10 @@ func TestBeanstalkRaw(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -750,7 +725,7 @@ func TestBeanstalkRaw(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -783,9 +758,8 @@ func TestBeanstalkInitV27BadResp(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-init-br.yaml",
-		Prefix:  "rr",
-		Version: "v2023.1.0",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -815,12 +789,10 @@ func TestBeanstalkInitV27BadResp(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -844,7 +816,7 @@ func TestBeanstalkInitV27BadResp(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 
@@ -863,22 +835,39 @@ func TestBeanstalkInitV27BadResp(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("beanstalk listener stopped").Len())
 }
 
+type inMemoryTracer struct {
+	tp  *sdktrace.TracerProvider
+	exp *tracetest.InMemoryExporter
+}
+
+func newInMemoryTracer(t *testing.T) *inMemoryTracer {
+	t.Helper()
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+	return &inMemoryTracer{tp: tp, exp: exp}
+}
+
+func (m *inMemoryTracer) Init() error                      { return nil }
+func (m *inMemoryTracer) Name() string                     { return "inMemoryTracer" }
+func (m *inMemoryTracer) Tracer() *sdktrace.TracerProvider { return m.tp }
+
 func TestBeanstalkOTEL(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.1.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-otel.yaml",
-		Prefix:  "rr",
 	}
 
+	tracer := newInMemoryTracer(t)
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
 		l,
-		&otel.Plugin{},
+		tracer,
 		&jobs.Plugin{},
 		&resetter.Plugin{},
 		&informer.Plugin{},
@@ -900,12 +889,10 @@ func TestBeanstalkOTEL(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -929,10 +916,11 @@ func TestBeanstalkOTEL(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
-	t.Run("PushPipeline", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
+	t.Run("PushPipeline-1", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
+	t.Run("PushPipeline-2", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
 	time.Sleep(time.Second * 2)
 
 	t.Run("DestroyPipeline", helpers.DestroyPipelines("127.0.0.1:7002", "test-1"))
@@ -940,19 +928,16 @@ func TestBeanstalkOTEL(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_beanstalk")
-	assert.NoError(t, err)
-
-	buf, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
+	spanMap := make(map[string]struct{})
+	for _, s := range tracer.exp.GetSpans() {
+		spanMap[s.Name] = struct{}{}
+	}
 
 	var spans []string
-	err = json.Unmarshal(buf, &spans)
-	assert.NoError(t, err)
-
-	sort.Slice(spans, func(i, j int) bool {
-		return spans[i] < spans[j]
-	})
+	for name := range spanMap {
+		spans = append(spans, name)
+	}
+	slices.Sort(spans)
 
 	expected := []string{
 		"beanstalk_listener",
@@ -964,20 +949,34 @@ func TestBeanstalkOTEL(t *testing.T) {
 	}
 	assert.Equal(t, expected, spans)
 
+	// Verify that beanstalk_listener spans are not chained — each must have an
+	// independent parent (from the push trace context), not a previous listener span.
+	listenerSpanIDs := make(map[trace.SpanID]struct{})
+	for _, s := range tracer.exp.GetSpans() {
+		if s.Name == "beanstalk_listener" {
+			listenerSpanIDs[s.SpanContext.SpanID()] = struct{}{}
+		}
+	}
+	for _, s := range tracer.exp.GetSpans() {
+		if s.Name == "beanstalk_listener" {
+			assert.True(t, s.Parent.IsValid(), "beanstalk_listener span should have a valid parent from the push trace context")
+			_, parentIsListener := listenerSpanIDs[s.Parent.SpanID()]
+			assert.False(t, parentIsListener, "beanstalk_listener span should not be a child of another beanstalk_listener span")
+		}
+	}
+
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("beanstalk listener stopped").Len())
-
-	t.Cleanup(func() {
-		_ = resp.Body.Close()
-	})
 }
 
 func declareBeanstalkPipe(address string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
+		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		require.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		pipe := &jobsProto.DeclareRequest{Pipeline: map[string]string{
 			"driver":          "beanstalk",

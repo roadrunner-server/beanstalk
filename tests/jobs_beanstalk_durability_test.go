@@ -12,7 +12,7 @@ import (
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
-	"github.com/roadrunner-server/beanstalk/v5"
+	"github.com/roadrunner-server/beanstalk/v6"
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
 	"github.com/roadrunner-server/informer/v5"
@@ -23,7 +23,7 @@ import (
 
 	"tests/helpers"
 
-	rpcPlugin "github.com/roadrunner-server/rpc/v4"
+	rpcPlugin "github.com/roadrunner-server/rpc/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +38,7 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-durability-redial.yaml",
 	}
 
@@ -68,12 +68,10 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -97,7 +95,7 @@ func TestDurabilityBeanstalk(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 	helpers.DisableProxy("redial", t)
