@@ -334,7 +334,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	l := atomic.LoadUint32(&d.listeners)
 	// no active listeners
 	if l == 1 {
-		return errors.Str("sqs listener already in the active state")
+		return errors.Str("beanstalk listener already in the active state")
 	}
 
 	// start listener

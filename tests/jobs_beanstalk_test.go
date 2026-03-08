@@ -20,7 +20,7 @@ import (
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v5"
+	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v6"
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
@@ -958,7 +958,8 @@ func TestBeanstalkOTEL(t *testing.T) {
 		}
 	}
 	for _, s := range tracer.exp.GetSpans() {
-		if s.Name == "beanstalk_listener" && s.Parent.IsValid() {
+		if s.Name == "beanstalk_listener" {
+			assert.True(t, s.Parent.IsValid(), "beanstalk_listener span should have a valid parent from the push trace context")
 			_, parentIsListener := listenerSpanIDs[s.Parent.SpanID()]
 			assert.False(t, parentIsListener, "beanstalk_listener span should not be a child of another beanstalk_listener span")
 		}

@@ -9,7 +9,7 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.23.0
-	github.com/roadrunner-server/beanstalk/v5 v5.1.9
+	github.com/roadrunner-server/beanstalk/v6 v6.0.0
 	github.com/roadrunner-server/config/v5 v5.1.9
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/goridge/v3 v3.8.3
@@ -17,19 +17,20 @@ require (
 	github.com/roadrunner-server/jobs/v5 v5.1.9
 	github.com/roadrunner-server/logger/v5 v5.1.9
 	github.com/roadrunner-server/resetter/v5 v5.1.9
-	github.com/roadrunner-server/rpc/v4 v4.4.5
 	github.com/roadrunner-server/rpc/v5 v5.1.9
 	github.com/roadrunner-server/server/v5 v5.2.10
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/sdk v1.42.0
+	go.opentelemetry.io/otel/trace v1.42.0
 	go.uber.org/zap v1.27.1
 	google.golang.org/genproto v0.0.0-20260226221140-a57be14db171
 )
 
-replace github.com/roadrunner-server/beanstalk/v5 => ../
+replace github.com/roadrunner-server/beanstalk/v6 => ../
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/color v1.18.0 // indirect
@@ -54,7 +55,6 @@ require (
 	github.com/roadrunner-server/events v1.0.1 // indirect
 	github.com/roadrunner-server/pool v1.1.3 // indirect
 	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
-	github.com/roadrunner-server/sdk/v4 v4.8.0 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -72,7 +72,6 @@ require (
 	go.opentelemetry.io/contrib/propagators/jaeger v1.42.0 // indirect
 	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
-	go.opentelemetry.io/otel/trace v1.42.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
