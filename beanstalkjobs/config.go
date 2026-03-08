@@ -31,7 +31,7 @@ func (c *config) InitDefault() {
 	}
 
 	if c.TubePriority == nil {
-		c.TubePriority = toPtr(uint32(0))
+		c.TubePriority = new(uint32)
 	}
 
 	if c.PipePriority == 0 {
@@ -45,8 +45,4 @@ func (c *config) InitDefault() {
 	if c.Timeout == 0 {
 		c.Timeout = time.Second * 30
 	}
-}
-
-func toPtr[T any](v T) *T {
-	return &v
 }

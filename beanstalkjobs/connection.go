@@ -204,12 +204,9 @@ func (cp *ConnPool) redial() error {
 func (cp *ConnPool) checkAndRedial(err error) error {
 	const op = errors.Op("connection_pool_check_redial")
 	const EOF string = "EOF"
-	var et beanstalk.ConnError
-	var bErr *net.OpError
 
-	if stderr.As(err, &et) {
-		switch {
-		case stderr.As(et.Err, &bErr):
+	if et, ok := stderr.AsType[beanstalk.ConnError](err); ok {
+		if bErr, ok := stderr.AsType[*net.OpError](et.Err); ok {
 			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et))
 			cp.RUnlock()
 			errR := cp.redial()
@@ -223,7 +220,7 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 			cp.log.Debug("beanstalk redial was successful")
 			// if redial was successful -> continue listening
 			return nil
-		case et.Err.Error() == EOF:
+		} else if et.Err.Error() == EOF {
 			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et.Err))
 			// if the error is related to the broken connection - redial
 			cp.RUnlock()
@@ -238,7 +235,7 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 			cp.log.Debug("beanstalk redial was successful")
 			// if redial was successful -> continue listening
 			return nil
-		case et.Op == "reserve-with-timeout" && (et.Err.Error() == "deadline soon" || et.Err.Error() == "timeout"):
+		} else if et.Op == "reserve-with-timeout" && (et.Err.Error() == "deadline soon" || et.Err.Error() == "timeout") {
 			cp.log.Debug("connection deadline reached, continue listening", zap.Error(et))
 			return errBeanstalkTimeout
 		}

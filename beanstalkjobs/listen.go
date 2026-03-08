@@ -9,7 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func (d *Driver) listen() {
+func (d *Driver) listen(ctx context.Context) {
+	ctx = context.WithoutCancel(ctx)
 	for {
 		select {
 		case <-d.stopCh:
@@ -33,12 +34,12 @@ func (d *Driver) listen() {
 			item := &Item{}
 			d.unpack(id, body, item)
 
-			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers))
+			ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(item.headers))
 			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "beanstalk_listener")
 
 			if item.Options.AutoAck {
 				d.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
-				errDel := d.pool.Delete(context.Background(), id)
+				errDel := d.pool.Delete(ctx, id)
 				if errDel != nil {
 					span.RecordError(errDel)
 					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))

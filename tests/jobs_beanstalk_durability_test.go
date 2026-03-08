@@ -38,7 +38,7 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*60))
 
 	cfg := &config.Plugin{
-		Version: "2023.3.0",
+		Version: "v2025.1.8",
 		Path:    "configs/.rr-beanstalk-durability-redial.yaml",
 	}
 
@@ -68,12 +68,10 @@ func TestDurabilityBeanstalk(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -97,7 +95,7 @@ func TestDurabilityBeanstalk(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second * 3)
 	helpers.DisableProxy("redial", t)

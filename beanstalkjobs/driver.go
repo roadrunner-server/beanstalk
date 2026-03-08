@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
+	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/errors"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
@@ -92,12 +92,12 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 
 	// PARSE CONFIGURATION -------
 
-	dsn := strings.Split(conf.Addr, "://")
-	if len(dsn) != 2 {
+	network, address, ok := strings.Cut(conf.Addr, "://")
+	if !ok {
 		return nil, errors.E(op, errors.Errorf("invalid socket DSN (tcp://127.0.0.1:11300, unix://beanstalk.sock), provided: %s", conf.Addr))
 	}
 
-	cPool, err := NewConnPool(dsn[0], dsn[1], conf.Tube, conf.Timeout, log)
+	cPool, err := NewConnPool(network, address, conf.Tube, conf.Timeout, log)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -109,8 +109,8 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
-		network:        dsn[0],
-		addr:           dsn[1],
+		network:        network,
+		addr:           address,
 		tout:           conf.Timeout,
 		tName:          conf.Tube,
 		reserveTimeout: conf.ReserveTimeout,
@@ -152,12 +152,12 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 	conf.InitDefault()
 	// PARSE CONFIGURATION -------
 
-	dsn := strings.Split(conf.Addr, "://")
-	if len(dsn) != 2 {
+	network, address, ok := strings.Cut(conf.Addr, "://")
+	if !ok {
 		return nil, errors.E(op, errors.Errorf("invalid socket DSN (tcp://127.0.0.1:11300, unix://beanstalk.sock), provided: %s", conf.Addr))
 	}
 
-	cPool, err := NewConnPool(dsn[0], dsn[1], pipe.String(tube, "default"), conf.Timeout, log)
+	cPool, err := NewConnPool(network, address, pipe.String(tube, "default"), conf.Timeout, log)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -169,12 +169,12 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
-		network:        dsn[0],
-		addr:           dsn[1],
+		network:        network,
+		addr:           address,
 		tout:           conf.Timeout,
 		tName:          pipe.String(tube, "default"),
 		reserveTimeout: time.Second * time.Duration(pipe.Int(reserveTimeout, 5)),
-		tubePriority:   toPtr(uint32(pipe.Int(tubePriority, 1))), //nolint:gosec
+		tubePriority:   new(uint32(pipe.Int(tubePriority, 1))), //nolint:gosec
 		priority:       pipe.Priority(),
 
 		// buffered with two because jobs root plugin can call Stop at the same time as Pause
@@ -254,7 +254,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	const op = errors.Op("beanstalk_run")
 	start := time.Now().UTC()
 
-	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_run")
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_run")
 	defer span.End()
 
 	// load atomic value
@@ -266,7 +266,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 
 	atomic.AddUint32(&d.listeners, 1)
 
-	go d.listen()
+	go d.listen(ctx)
 
 	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 	return nil
@@ -322,7 +322,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 func (d *Driver) Resume(ctx context.Context, p string) error {
 	start := time.Now().UTC()
 
-	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_resume")
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_resume")
 	defer span.End()
 
 	// load atomic value
@@ -338,7 +338,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	}
 
 	// start listener
-	go d.listen()
+	go d.listen(ctx)
 
 	// increase num of listeners
 	atomic.AddUint32(&d.listeners, 1)
