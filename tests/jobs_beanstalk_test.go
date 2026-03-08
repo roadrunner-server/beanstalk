@@ -973,7 +973,9 @@ func declareBeanstalkPipe(address string) func(t *testing.T) {
 	return func(t *testing.T) {
 		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		require.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		pipe := &jobsProto.DeclareRequest{Pipeline: map[string]string{
 			"driver":          "beanstalk",

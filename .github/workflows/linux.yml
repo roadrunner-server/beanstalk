@@ -157,7 +157,7 @@ jobs:
       - name: Merge coverage files
         run: |
           echo "mode: atomic" > summary.txt
-          cat *.out | grep -v "^mode:" | awk -F':' '{ sub(/.*github\.com\/roadrunner-server\/beanstalk\/v5\//, "", $1); print }' >> summary.txt
+          cat *.out | grep -v "^mode:" | awk '{ sub(/github\.com\/roadrunner-server\/beanstalk\/v[56]\//, ""); print }' >> summary.txt
 
       - name: Upload to codecov
         uses: codecov/codecov-action@v5 # Docs: <https://github.com/codecov/codecov-action>

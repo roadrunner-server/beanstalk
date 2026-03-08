@@ -29,7 +29,9 @@ func callPipelinesRPC(t *testing.T, method, address string, pipes ...string) {
 	t.Helper()
 	conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	defer func() { _ = client.Close() }()
 
 	pipe := &jobsProto.Pipelines{Pipelines: make([]string, len(pipes))}
 
@@ -52,7 +54,9 @@ func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T
 	return func(t *testing.T) {
 		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		require.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		req := &jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}
 
@@ -66,7 +70,9 @@ func PushToPipeDelayed(address string, pipeline string, delay int64) func(t *tes
 	return func(t *testing.T) {
 		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		assert.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		req := &jobsProto.PushRequest{Job: &jobsProto.Job{
 			Job:     "some/php/namespace",
@@ -111,7 +117,9 @@ func DestroyPipelines(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		assert.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		pipe := &jobsProto.Pipelines{Pipelines: make([]string, len(pipes))}
 
@@ -136,7 +144,9 @@ func Stats(address string, state *jobState.State) func(t *testing.T) {
 	return func(t *testing.T) {
 		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
 		require.NoError(t, err)
+		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		defer func() { _ = client.Close() }()
 
 		st := &jobsProto.Stats{}
 		er := &jobsProto.Empty{}
