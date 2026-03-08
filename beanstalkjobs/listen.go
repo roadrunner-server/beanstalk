@@ -4,13 +4,12 @@ import (
 	"context"
 	stderr "errors"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
 func (d *Driver) listen(ctx context.Context) {
-	ctx = context.WithoutCancel(ctx)
+	baseCtx := context.WithoutCancel(ctx)
 	for {
 		select {
 		case <-d.stopCh:
@@ -34,12 +33,12 @@ func (d *Driver) listen(ctx context.Context) {
 			item := &Item{}
 			d.unpack(id, body, item)
 
-			ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(item.headers))
-			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "beanstalk_listener")
+			itemCtx := d.prop.Extract(baseCtx, propagation.HeaderCarrier(item.headers))
+			itemCtx, span := d.tracer.Tracer(tracerName).Start(itemCtx, "beanstalk_listener")
 
 			if item.Options.AutoAck {
 				d.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
-				errDel := d.pool.Delete(ctx, id)
+				errDel := d.pool.Delete(itemCtx, id)
 				if errDel != nil {
 					span.RecordError(errDel)
 					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
@@ -51,7 +50,7 @@ func (d *Driver) listen(ctx context.Context) {
 				item.headers = make(map[string][]string, 2)
 			}
 
-			d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
+			d.prop.Inject(itemCtx, propagation.HeaderCarrier(item.headers))
 			// insert a job into the priority queue
 			d.pq.Insert(item)
 			span.End()

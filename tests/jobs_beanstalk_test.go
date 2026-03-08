@@ -34,6 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -918,7 +919,8 @@ func TestBeanstalkOTEL(t *testing.T) {
 	})
 
 	time.Sleep(time.Second * 3)
-	t.Run("PushPipeline", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
+	t.Run("PushPipeline-1", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
+	t.Run("PushPipeline-2", helpers.PushToPipe("test-1", false, "127.0.0.1:7002"))
 	time.Sleep(time.Second * 2)
 
 	t.Run("DestroyPipeline", helpers.DestroyPipelines("127.0.0.1:7002", "test-1"))
@@ -946,6 +948,21 @@ func TestBeanstalkOTEL(t *testing.T) {
 		"push",
 	}
 	assert.Equal(t, expected, spans)
+
+	// Verify that beanstalk_listener spans are not chained — each must have an
+	// independent parent (from the push trace context), not a previous listener span.
+	listenerSpanIDs := make(map[trace.SpanID]struct{})
+	for _, s := range tracer.exp.GetSpans() {
+		if s.Name == "beanstalk_listener" {
+			listenerSpanIDs[s.SpanContext.SpanID()] = struct{}{}
+		}
+	}
+	for _, s := range tracer.exp.GetSpans() {
+		if s.Name == "beanstalk_listener" && s.Parent.IsValid() {
+			_, parentIsListener := listenerSpanIDs[s.Parent.SpanID()]
+			assert.False(t, parentIsListener, "beanstalk_listener span should not be a child of another beanstalk_listener span")
+		}
+	}
 
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
