@@ -33,11 +33,11 @@ func (d *Driver) listen(ctx context.Context) {
 			item := &Item{}
 			d.unpack(id, body, item)
 
-			if item.headers == nil {
-				item.headers = make(map[string][]string, 2)
+			if item.Hdrs == nil {
+				item.Hdrs = make(map[string][]string, 2)
 			}
 
-			itemCtx := d.prop.Extract(baseCtx, propagation.HeaderCarrier(item.headers))
+			itemCtx := d.prop.Extract(baseCtx, propagation.HeaderCarrier(item.Hdrs))
 			itemCtx, span := d.tracer.Tracer(tracerName).Start(itemCtx, "beanstalk_listener")
 
 			if item.Options.AutoAck {
@@ -49,7 +49,7 @@ func (d *Driver) listen(ctx context.Context) {
 				}
 			}
 
-			d.prop.Inject(itemCtx, propagation.HeaderCarrier(item.headers))
+			d.prop.Inject(itemCtx, propagation.HeaderCarrier(item.Hdrs))
 			// insert a job into the priority queue
 			d.pq.Insert(item)
 			span.End()

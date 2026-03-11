@@ -28,8 +28,8 @@ type Item struct {
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload []byte `json:"payload"`
-	// Headers with key-values pairs
-	headers map[string][]string
+	// Hdrs contains headers with key-values pairs
+	Hdrs map[string][]string
 	// Options contain a set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
@@ -77,7 +77,7 @@ func (i *Item) Body() []byte {
 }
 
 func (i *Item) Headers() map[string][]string {
-	return i.headers
+	return i.Hdrs
 }
 
 // Context packs job context (job, id) into binary payload.
@@ -95,7 +95,7 @@ func (i *Item) Context() ([]byte, error) {
 			ID:       i.Ident,
 			Job:      i.Job,
 			Driver:   pluginName,
-			Headers:  i.headers,
+			Headers:  i.Hdrs,
 			Queue:    i.Options.Queue,
 			Pipeline: i.Options.Pipeline,
 		},
@@ -144,7 +144,7 @@ func (i *Item) Nack() error {
 func (i *Item) Requeue(headers map[string][]string, delay int) error {
 	// overwrite the delay
 	i.Options.Delay = delay
-	maps.Copy(i.headers, headers)
+	maps.Copy(i.Hdrs, headers)
 
 	err := i.Options.requeueFn(context.Background(), i)
 	if err != nil {
@@ -169,7 +169,7 @@ func fromJob(job jobs.Message) *Item {
 		Job:     job.Name(),
 		Ident:   job.ID(),
 		Payload: job.Payload(),
-		headers: job.Headers(),
+		Hdrs:    job.Headers(),
 		Options: &Options{
 			AutoAck:  job.AutoAck(),
 			Priority: job.Priority(),
@@ -191,7 +191,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) {
 			Job:     auto,
 			Ident:   uuid.NewString(),
 			Payload: data,
-			headers: make(map[string][]string, 2),
+			Hdrs:    make(map[string][]string, 2),
 			Options: &Options{
 				Priority:  pipe.Priority(),
 				Pipeline:  pipe.Name(),

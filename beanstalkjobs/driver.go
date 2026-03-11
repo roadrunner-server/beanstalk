@@ -350,7 +350,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	const op = errors.Op("beanstalk_handle_item")
 
-	d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
+	d.prop.Inject(ctx, propagation.HeaderCarrier(item.Hdrs))
 
 	bb := new(bytes.Buffer)
 	bb.Grow(64)
