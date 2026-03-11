@@ -40,7 +40,7 @@ type Driver struct {
 	prop   propagation.TextMapPropagator
 
 	pipeline  atomic.Pointer[jobs.Pipeline]
-	listeners uint32
+	listeners atomic.Uint32
 
 	// beanstalk
 	pool           *ConnPool
@@ -57,7 +57,7 @@ type Driver struct {
 	stopCh chan struct{}
 }
 
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -127,7 +127,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	return jc, nil
 }
 
-func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -227,7 +227,7 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    d.tName,
-		Ready:    ready(atomic.LoadUint32(&d.listeners)),
+		Ready:    ready(d.listeners.Load()),
 	}
 
 	// set stat, skip errors (replace with 0)
@@ -264,7 +264,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", p.Name(), pipe.Name()))
 	}
 
-	atomic.AddUint32(&d.listeners, 1)
+	d.listeners.Add(1)
 
 	go d.listen(ctx)
 
@@ -279,7 +279,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "beanstalk_stop")
 	defer span.End()
 
-	if atomic.LoadUint32(&d.listeners) == 1 {
+	if d.listeners.Load() == 1 {
 		d.stopCh <- struct{}{}
 	}
 
@@ -305,13 +305,13 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&d.listeners)
+	l := d.listeners.Load()
 	// no active listeners
 	if l == 0 {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
-	atomic.AddUint32(&d.listeners, ^uint32(0))
+	d.listeners.Add(^uint32(0))
 
 	d.stopCh <- struct{}{}
 	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
@@ -331,7 +331,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&d.listeners)
+	l := d.listeners.Load()
 	// no active listeners
 	if l == 1 {
 		return errors.Str("beanstalk listener already in the active state")
@@ -341,7 +341,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	go d.listen(ctx)
 
 	// increase num of listeners
-	atomic.AddUint32(&d.listeners, 1)
+	d.listeners.Add(1)
 	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
@@ -359,10 +359,7 @@ func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 		return errors.E(op, err)
 	}
 
-	body := make([]byte, bb.Len())
-	copy(body, bb.Bytes())
-	bb.Reset()
-	bb = nil
+	body := bb.Bytes()
 
 	// https://github.com/beanstalkd/beanstalkd/blob/master/doc/protocol.txt#L458
 	// <pri> is an integer < 2**32. Jobs with smaller priority values will be
@@ -379,12 +376,8 @@ func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	// <ttr> seconds, the job will time out and the server will release the job.
 	//	The minimum ttr is 1. If the client sends 0, the server will silently
 	// increase the ttr to 1. Maximum ttr is 2**32-1.
-	id, err := d.pool.Put(ctx, body, *d.tubePriority, item.Options.DelayDuration(), d.tout)
+	_, err = d.pool.Put(ctx, body, *d.tubePriority, item.Options.DelayDuration(), d.tout)
 	if err != nil {
-		errD := d.pool.Delete(ctx, id)
-		if errD != nil {
-			return errors.E(op, errors.Errorf("%s:%s", err.Error(), errD.Error()))
-		}
 		return errors.E(op, err)
 	}
 

@@ -18,14 +18,14 @@ import (
 
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/google/uuid"
-	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
-	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
+	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
 	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v6"
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
-	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
+	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/roadrunner-server/informer/v5"
-	"github.com/roadrunner-server/jobs/v5"
+	"github.com/roadrunner-server/jobs/v6"
 	"github.com/roadrunner-server/logger/v5"
 	"github.com/roadrunner-server/resetter/v5"
 	rpcPlugin "github.com/roadrunner-server/rpc/v5"
@@ -933,7 +933,7 @@ func TestBeanstalkOTEL(t *testing.T) {
 		spanMap[s.Name] = struct{}{}
 	}
 
-	var spans []string
+	spans := make([]string, 0, len(spanMap))
 	for name := range spanMap {
 		spans = append(spans, name)
 	}
@@ -972,7 +972,7 @@ func TestBeanstalkOTEL(t *testing.T) {
 
 func declareBeanstalkPipe(address string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", address)
+		conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", address)
 		require.NoError(t, err)
 		defer func() { _ = conn.Close() }()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
@@ -987,7 +987,7 @@ func declareBeanstalkPipe(address string) func(t *testing.T) {
 			"tube_priority":   "10",
 		}}
 
-		er := &jobsProto.Empty{}
+		er := &jobsProto.JobResponse{}
 		err = client.Call("jobs.Declare", pipe, er)
 		require.NoError(t, err)
 	}

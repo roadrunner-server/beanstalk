@@ -33,6 +33,10 @@ func (d *Driver) listen(ctx context.Context) {
 			item := &Item{}
 			d.unpack(id, body, item)
 
+			if item.headers == nil {
+				item.headers = make(map[string][]string, 2)
+			}
+
 			itemCtx := d.prop.Extract(baseCtx, propagation.HeaderCarrier(item.headers))
 			itemCtx, span := d.tracer.Tracer(tracerName).Start(itemCtx, "beanstalk_listener")
 
@@ -43,11 +47,6 @@ func (d *Driver) listen(ctx context.Context) {
 					span.RecordError(errDel)
 					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
 				}
-			}
-
-			// check the header before injecting OTEL headers
-			if item.headers == nil {
-				item.headers = make(map[string][]string, 2)
 			}
 
 			d.prop.Inject(itemCtx, propagation.HeaderCarrier(item.headers))

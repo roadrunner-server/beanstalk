@@ -8,13 +8,14 @@ require (
 	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.23.0
+	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.1
+	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.1
 	github.com/roadrunner-server/beanstalk/v6 v6.0.0
 	github.com/roadrunner-server/config/v5 v5.1.9
 	github.com/roadrunner-server/endure/v2 v2.6.2
-	github.com/roadrunner-server/goridge/v3 v3.8.3
+	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.1
 	github.com/roadrunner-server/informer/v5 v5.1.9
-	github.com/roadrunner-server/jobs/v5 v5.1.9
+	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.1
 	github.com/roadrunner-server/logger/v5 v5.1.9
 	github.com/roadrunner-server/resetter/v5 v5.1.9
 	github.com/roadrunner-server/rpc/v5 v5.1.9
@@ -23,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	go.uber.org/zap v1.27.1
-	google.golang.org/genproto v0.0.0-20260226221140-a57be14db171
+	google.golang.org/genproto v0.0.0-20260311181403-84a4fc48630c
 )
 
 replace github.com/roadrunner-server/beanstalk/v6 => ../
@@ -50,9 +51,10 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
-	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.1 // indirect
+	github.com/roadrunner-server/api/v4 v4.23.0 // indirect
 	github.com/roadrunner-server/errors v1.4.1 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
+	github.com/roadrunner-server/goridge/v3 v3.8.3 // indirect
 	github.com/roadrunner-server/pool v1.1.3 // indirect
 	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
@@ -77,7 +79,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

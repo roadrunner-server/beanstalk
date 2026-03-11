@@ -11,7 +11,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
+	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"go.uber.org/zap"
 )
 
@@ -186,14 +186,15 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) {
 	if err != nil {
 		d.log.Debug("failed to unpack the item", zap.Error(err))
 
+		pipe := *d.pipeline.Load()
 		*out = Item{
 			Job:     auto,
 			Ident:   uuid.NewString(),
 			Payload: data,
 			headers: make(map[string][]string, 2),
 			Options: &Options{
-				Priority:  (*d.pipeline.Load()).Priority(),
-				Pipeline:  (*d.pipeline.Load()).Name(),
+				Priority:  pipe.Priority(),
+				Pipeline:  pipe.Name(),
 				Queue:     d.tName,
 				id:        id,
 				requeueFn: d.handleItem,

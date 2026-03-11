@@ -1,6 +1,8 @@
 package beanstalk
 
 import (
+	"context"
+
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
@@ -56,12 +58,12 @@ func (p *Plugin) Collects() []*dep.In {
 	}
 }
 
-// DriverFromConfig constructs kafka driver from the .rr.yaml configuration
-func (p *Plugin) DriverFromConfig(configKey string, pq jobs.Queue, pipeline jobs.Pipeline) (jobs.Driver, error) {
-	return beanstalkjobs.FromConfig(p.tracer, configKey, p.log, p.cfg, pipeline, pq)
+// DriverFromConfig constructs beanstalk driver from the .rr.yaml configuration
+func (p *Plugin) DriverFromConfig(ctx context.Context, configKey string, pq jobs.Queue, pipeline jobs.Pipeline) (jobs.Driver, error) {
+	return beanstalkjobs.FromConfig(ctx, p.tracer, configKey, p.log, p.cfg, pipeline, pq)
 }
 
-// DriverFromPipeline constructs kafka driver from pipeline
-func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq jobs.Queue) (jobs.Driver, error) {
-	return beanstalkjobs.FromPipeline(p.tracer, pipe, p.log, p.cfg, pq)
+// DriverFromPipeline constructs beanstalk driver from pipeline
+func (p *Plugin) DriverFromPipeline(ctx context.Context, pipe jobs.Pipeline, pq jobs.Queue) (jobs.Driver, error) {
+	return beanstalkjobs.FromPipeline(ctx, p.tracer, pipe, p.log, p.cfg, pq)
 }
