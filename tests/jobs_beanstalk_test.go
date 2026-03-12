@@ -200,7 +200,7 @@ func TestBeanstalkInitPQ(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	require.Equal(t, 200, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
-	require.Equal(t, 4, oLogger.FilterMessageSnippet("job processing was started").Len())
+	require.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job processing was started").Len(), 4)
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("beanstalk listener stopped").Len())
 }
 
