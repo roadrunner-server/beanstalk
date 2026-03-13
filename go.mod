@@ -7,7 +7,7 @@ toolchain go1.26.0
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/goccy/go-json v0.10.5
+	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.1
 	github.com/roadrunner-server/endure/v2 v2.6.2
