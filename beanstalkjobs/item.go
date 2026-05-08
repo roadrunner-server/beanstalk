@@ -12,7 +12,6 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
-	"go.uber.org/zap"
 )
 
 var _ jobs.Job = (*Item)(nil)
@@ -184,7 +183,7 @@ func (d *Driver) unpack(id uint64, data []byte, out *Item) {
 	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
 	// if not - fill the item with default values (or values we already have)
 	if err != nil {
-		d.log.Debug("failed to unpack the item", zap.Error(err))
+		d.log.Debug("failed to unpack the item", "error", err)
 
 		pipe := *d.pipeline.Load()
 		*out = Item{

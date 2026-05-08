@@ -5,7 +5,6 @@ import (
 	stderr "errors"
 
 	"go.opentelemetry.io/otel/propagation"
-	"go.uber.org/zap"
 )
 
 func (d *Driver) listen(ctx context.Context) {
@@ -26,7 +25,7 @@ func (d *Driver) listen(ctx context.Context) {
 				}
 
 				// in case of another error, log and continue
-				d.log.Error("beanstalk listen", zap.Error(err))
+				d.log.Error("beanstalk listen", "error", err)
 				continue
 			}
 
@@ -41,11 +40,11 @@ func (d *Driver) listen(ctx context.Context) {
 			itemCtx, span := d.tracer.Tracer(tracerName).Start(itemCtx, "beanstalk_listener")
 
 			if item.Options.AutoAck {
-				d.log.Debug("auto_ack option enabled", zap.Uint64("id", id))
+				d.log.Debug("auto_ack option enabled", "id", id)
 				errDel := d.pool.Delete(itemCtx, id)
 				if errDel != nil {
 					span.RecordError(errDel)
-					d.log.Error("delete item", zap.Error(errDel), zap.Uint64("id", id))
+					d.log.Error("delete item", "error", errDel, "id", id)
 				}
 			}
 

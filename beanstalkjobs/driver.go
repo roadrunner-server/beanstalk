@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -16,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 const (
@@ -34,7 +34,7 @@ type Configurer interface {
 }
 
 type Driver struct {
-	log    *zap.Logger
+	log    *slog.Logger
 	pq     jobs.Queue
 	tracer *sdktrace.TracerProvider
 	prop   propagation.TextMapPropagator
@@ -57,7 +57,7 @@ type Driver struct {
 	stopCh chan struct{}
 }
 
-func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -127,7 +127,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	return jc, nil
 }
 
-func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_beanstalk_consumer")
 
 	if tracer == nil {
@@ -268,7 +268,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 
 	go d.listen(ctx)
 
-	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -289,7 +289,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 	// remove all pending JOBS associated with the pipeline
 	_ = d.pq.Remove(pipe.Name())
 
-	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was stopped", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -314,7 +314,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 	d.listeners.Add(^uint32(0))
 
 	d.stopCh <- struct{}{}
-	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -342,7 +342,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 
 	// increase num of listeners
 	d.listeners.Add(1)
-	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }

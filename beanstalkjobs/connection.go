@@ -3,6 +3,7 @@ package beanstalkjobs
 import (
 	"context"
 	stderr "errors"
+	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -11,7 +12,6 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/roadrunner-server/errors"
-	"go.uber.org/zap"
 )
 
 var errBeanstalkTimeout = stderr.New("beanstalk timeout")
@@ -19,7 +19,7 @@ var errBeanstalkTimeout = stderr.New("beanstalk timeout")
 type ConnPool struct {
 	sync.RWMutex
 
-	log *zap.Logger
+	log *slog.Logger
 
 	connTS atomic.Pointer[beanstalk.Conn]
 	connT  atomic.Pointer[beanstalk.Conn]
@@ -32,7 +32,7 @@ type ConnPool struct {
 	tout    time.Duration
 }
 
-func NewConnPool(network, address, tName string, tout time.Duration, log *zap.Logger) (*ConnPool, error) {
+func NewConnPool(network, address, tName string, tout time.Duration, log *slog.Logger) (*ConnPool, error) {
 	connT, err := beanstalk.DialTimeout(network, address, tout)
 	if err != nil {
 		return nil, err
@@ -208,23 +208,23 @@ func (cp *ConnPool) checkAndRedial(err error) error {
 	if et, ok := stderr.AsType[beanstalk.ConnError](err); ok {
 		_, isNetErr := stderr.AsType[*net.OpError](et.Err)
 		if isNetErr || et.Err.Error() == EOF {
-			cp.log.Debug("beanstalk connection error, redialing", zap.Error(et))
+			cp.log.Debug("beanstalk connection error, redialing", "error", et)
 			cp.RUnlock()
 			errR := cp.redial()
 			cp.RLock()
 			if errR != nil {
-				cp.log.Error("beanstalk redial failed", zap.Error(errR))
+				cp.log.Error("beanstalk redial failed", "error", errR)
 				return errors.E(op, errors.Errorf("%v:%v", err, errR))
 			}
 
 			cp.log.Debug("beanstalk redial was successful")
 			return nil
 		} else if et.Op == "reserve-with-timeout" && (et.Err.Error() == "deadline soon" || et.Err.Error() == "timeout") {
-			cp.log.Debug("connection deadline reached, continue listening", zap.Error(et))
+			cp.log.Debug("connection deadline reached, continue listening", "error", et)
 			return errBeanstalkTimeout
 		}
 	}
 
-	cp.log.Error("beanstalk connection error, unknown type of error", zap.Error(err))
+	cp.log.Error("beanstalk connection error, unknown type of error", "error", err)
 	return err
 }
