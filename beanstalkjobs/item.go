@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"maps"
 	"sync/atomic"
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
-	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 )

@@ -13,9 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"tests/helpers"
-	mocklogger "tests/mock"
-
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
@@ -35,7 +32,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
+	"tests/helpers"
+	mocklogger "tests/mock"
 )
 
 func TestBeanstalkInit(t *testing.T) {
@@ -46,7 +44,7 @@ func TestBeanstalkInit(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-init.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		l,
 		cfg,
@@ -127,7 +125,7 @@ func TestBeanstalkInitPQ(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-pq.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -212,7 +210,7 @@ func TestBeanstalkInitAutoAck(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-init.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -293,7 +291,7 @@ func TestBeanstalkInitV27(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-init-v27.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -671,7 +669,7 @@ func TestBeanstalkRaw(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-raw.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -762,7 +760,7 @@ func TestBeanstalkInitV27BadResp(t *testing.T) {
 		Path:    "configs/.rr-beanstalk-init-br.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -861,7 +859,7 @@ func TestBeanstalkOTEL(t *testing.T) {
 	}
 
 	tracer := newInMemoryTracer(t)
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -987,7 +985,7 @@ func declareBeanstalkPipe(address string) func(t *testing.T) {
 			"tube_priority":   "10",
 		}}
 
-		er := &jobsProto.JobResponse{}
+		er := &jobsProto.JobsHandlerResponse{}
 		err = client.Call("jobs.Declare", pipe, er)
 		require.NoError(t, err)
 	}

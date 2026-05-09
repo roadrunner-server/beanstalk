@@ -38,7 +38,7 @@ func callPipelinesRPC(t *testing.T, method, address string, pipes ...string) {
 		pipe.GetPipelines()[i] = pipes[i]
 	}
 
-	er := &jobsProto.JobResponse{}
+	er := &jobsProto.JobsHandlerResponse{}
 	err = client.Call(method, pipe, er)
 	require.NoError(t, err)
 }
@@ -57,9 +57,9 @@ func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 		defer func() { _ = client.Close() }()
 
-		req := &jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}
+		req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{createDummyJob(pipeline, autoAck)}}
 
-		er := &jobsProto.JobResponse{}
+		er := &jobsProto.JobsHandlerResponse{}
 		err = client.Call(push, req, er)
 		require.NoError(t, err)
 	}
@@ -73,7 +73,7 @@ func PushToPipeDelayed(address string, pipeline string, delay int64) func(t *tes
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 		defer func() { _ = client.Close() }()
 
-		req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+		req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
 			Job:     "some/php/namespace",
 			Id:      uuid.NewString(),
 			Payload: []byte(`{"hello":"world"}`),
@@ -83,9 +83,9 @@ func PushToPipeDelayed(address string, pipeline string, delay int64) func(t *tes
 				Pipeline: pipeline,
 				Delay:    delay,
 			},
-		}}
+		}}}
 
-		er := &jobsProto.JobResponse{}
+		er := &jobsProto.JobsHandlerResponse{}
 		err = client.Call(push, req, er)
 		assert.NoError(t, err)
 	}
@@ -127,7 +127,7 @@ func DestroyPipelines(address string, pipes ...string) func(t *testing.T) {
 		}
 
 		for range 10 {
-			er := &jobsProto.JobResponse{}
+			er := &jobsProto.JobsHandlerResponse{}
 			err = client.Call(destroy, pipe, er)
 			if err != nil {
 				time.Sleep(time.Second)
@@ -148,7 +148,7 @@ func Stats(address string, state *jobState.State) func(t *testing.T) {
 		defer func() { _ = client.Close() }()
 
 		st := &jobsProto.Stats{}
-		er := &jobsProto.JobResponse{}
+		er := &jobsProto.JobsHandlerResponse{}
 
 		err = client.Call(stat, er, st)
 		require.NoError(t, err)
