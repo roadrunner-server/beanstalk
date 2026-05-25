@@ -3,8 +3,6 @@ package tests
 import (
 	"context"
 	"log/slog"
-	"net"
-	"net/rpc"
 	"os"
 	"os/signal"
 	"slices"
@@ -13,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"tests/helpers"
+	mocklogger "tests/mock"
+
+	"connectrpc.com/connect"
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
@@ -20,7 +22,6 @@ import (
 	beanstalkPlugin "github.com/roadrunner-server/beanstalk/v6"
 	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/endure/v2"
-	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/roadrunner-server/informer/v6"
 	"github.com/roadrunner-server/jobs/v6"
 	"github.com/roadrunner-server/logger/v6"
@@ -32,8 +33,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
-	"tests/helpers"
-	mocklogger "tests/mock"
 )
 
 func TestBeanstalkInit(t *testing.T) {
@@ -970,13 +969,8 @@ func TestBeanstalkOTEL(t *testing.T) {
 
 func declareBeanstalkPipe(address string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", address)
-		require.NoError(t, err)
-		defer func() { _ = conn.Close() }()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-		defer func() { _ = client.Close() }()
-
-		pipe := &jobsProto.DeclareRequest{Pipeline: map[string]string{
+		client := helpers.NewJobsClient(t, address)
+		req := &jobsProto.DeclareRequest{Pipeline: map[string]string{
 			"driver":          "beanstalk",
 			"name":            "test-3",
 			"tube":            uuid.NewString(),
@@ -984,9 +978,7 @@ func declareBeanstalkPipe(address string) func(t *testing.T) {
 			"priority":        "3",
 			"tube_priority":   "10",
 		}}
-
-		er := &jobsProto.JobsHandlerResponse{}
-		err = client.Call("jobs.Declare", pipe, er)
+		_, err := client.Declare(t.Context(), connect.NewRequest(req))
 		require.NoError(t, err)
 	}
 }
