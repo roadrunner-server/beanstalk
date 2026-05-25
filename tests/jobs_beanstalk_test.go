@@ -11,6 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"tests/helpers"
+	mocklogger "tests/mock"
+
 	"connectrpc.com/connect"
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/google/uuid"
@@ -30,8 +33,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
-	"tests/helpers"
-	mocklogger "tests/mock"
 )
 
 func TestBeanstalkInit(t *testing.T) {
