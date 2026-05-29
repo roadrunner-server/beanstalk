@@ -180,7 +180,7 @@ func fromJob(job jobs.Message) *Item {
 
 func (d *Driver) unpack(id uint64, data []byte, out *Item) {
 	// try to decode the item
-	err := gob.NewDecoder(bytes.NewBuffer(data)).Decode(out)
+	err := gob.NewDecoder(bytes.NewReader(data)).Decode(out)
 	// if not - fill the item with default values (or values we already have)
 	if err != nil {
 		d.log.Debug("failed to unpack the item", "error", err)

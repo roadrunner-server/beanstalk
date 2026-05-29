@@ -3,6 +3,7 @@ package beanstalkjobs
 import (
 	"context"
 	stderr "errors"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
@@ -40,6 +41,7 @@ func NewConnPool(network, address, tName string, tout time.Duration, log *slog.L
 
 	connTS, err := beanstalk.DialTimeout(network, address, tout)
 	if err != nil {
+		_ = connT.Close()
 		return nil, err
 	}
 
@@ -74,7 +76,7 @@ func (cp *ConnPool) Put(_ context.Context, body []byte, pri uint32, delay, ttr t
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
-			return 0, errors.Errorf("err: %s\nerr redial: %s", err, errN)
+			return 0, stderr.Join(err, errN)
 		}
 
 		return cp.t.Load().Put(body, pri, delay, ttr)
@@ -117,7 +119,7 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 		// errN contains both, err and internal checkAndRedial error
 		errN := cp.checkAndRedial(err)
 		if errN != nil {
-			return errors.Errorf("err: %s\nerr redial: %s", err, errN)
+			return stderr.Join(err, errN)
 		}
 
 		// retry, Delete only when we redialed
@@ -134,7 +136,7 @@ func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 	if err != nil {
 		errR := cp.checkAndRedial(err)
 		if errR != nil {
-			return nil, errors.Errorf("err: %s\nerr redial: %s", err, errR)
+			return nil, stderr.Join(err, errR)
 		}
 
 		return cp.connTS.Load().Stats()
@@ -155,6 +157,7 @@ func (cp *ConnPool) redial() error {
 	const op = errors.Op("connection_pool_redial")
 
 	cp.Lock()
+	defer cp.Unlock()
 	// backoff here
 	expb := backoff.NewExponentialBackOff()
 	// TODO(rustatian) set via config
@@ -171,10 +174,12 @@ func (cp *ConnPool) redial() error {
 
 		connTS, err := beanstalk.DialTimeout(cp.network, cp.address, cp.tout)
 		if err != nil {
+			_ = connT.Close()
 			return err
 		}
 
 		if connTS == nil {
+			_ = connT.Close()
 			return errors.E(op, errors.Str("connectionTS is nil"))
 		}
 
@@ -184,8 +189,12 @@ func (cp *ConnPool) redial() error {
 		ts := beanstalk.NewTubeSet(connTS, cp.tName)
 		cp.ts.Swap(ts)
 
-		cp.connTS.Swap(connTS)
-		cp.connT.Swap(connT)
+		if oldConnTS := cp.connTS.Swap(connTS); oldConnTS != nil {
+			_ = oldConnTS.Close()
+		}
+		if oldConnT := cp.connT.Swap(connT); oldConnT != nil {
+			_ = oldConnT.Close()
+		}
 
 		cp.log.Debug("beanstalk redial was successful")
 		return nil
@@ -193,21 +202,18 @@ func (cp *ConnPool) redial() error {
 
 	retryErr := backoff.Retry(operation, expb)
 	if retryErr != nil {
-		cp.Unlock()
 		return retryErr
 	}
-	cp.Unlock()
 
 	return nil
 }
 
 func (cp *ConnPool) checkAndRedial(err error) error {
 	const op = errors.Op("connection_pool_check_redial")
-	const EOF string = "EOF"
 
 	if et, ok := stderr.AsType[beanstalk.ConnError](err); ok {
 		_, isNetErr := stderr.AsType[*net.OpError](et.Err)
-		if isNetErr || et.Err.Error() == EOF {
+		if isNetErr || stderr.Is(et.Err, io.EOF) {
 			cp.log.Debug("beanstalk connection error, redialing", "error", et)
 			cp.RUnlock()
 			errR := cp.redial()
