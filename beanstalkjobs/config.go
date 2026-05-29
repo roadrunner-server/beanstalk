@@ -27,7 +27,7 @@ func (c *config) InitDefault() {
 	}
 
 	if c.ReserveTimeout == 0 {
-		c.ReserveTimeout = time.Second * 1
+		c.ReserveTimeout = time.Second
 	}
 
 	if c.TubePriority == nil {
