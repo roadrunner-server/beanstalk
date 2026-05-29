@@ -46,9 +46,6 @@ func (d *Driver) listen(ctx context.Context) {
 					span.RecordError(errDel)
 					d.log.Error("delete item", "error", errDel, "id", id)
 				}
-				span.End()
-				// job already ack'd; do not insert into the queue to avoid double-processing
-				continue
 			}
 
 			d.prop.Inject(itemCtx, propagation.HeaderCarrier(item.Hdrs))
