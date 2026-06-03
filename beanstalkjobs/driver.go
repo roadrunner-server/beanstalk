@@ -13,7 +13,6 @@ import (
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/errors"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -40,14 +39,11 @@ type Driver struct {
 	prop   propagation.TextMapPropagator
 
 	pipeline  atomic.Pointer[jobs.Pipeline]
-	listeners atomic.Uint32
+	listeners atomic.Int32
 
 	// beanstalk
 	pool           *ConnPool
-	addr           string
-	network        string
 	reserveTimeout time.Duration
-	reconnectCh    chan struct{}
 	tout           time.Duration
 	// tube name
 	tName        string
@@ -65,7 +61,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	}
 
 	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
-	otel.SetTextMapPropagator(prop)
 
 	// PARSE CONFIGURATION -------
 	var conf config
@@ -109,8 +104,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
-		network:        network,
-		addr:           address,
 		tout:           conf.Timeout,
 		tName:          conf.Tube,
 		reserveTimeout: conf.ReserveTimeout,
@@ -118,8 +111,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		priority:       conf.PipePriority,
 
 		// buffered with two because jobs root plugin can call Stop at the same time as Pause
-		stopCh:      make(chan struct{}, 2),
-		reconnectCh: make(chan struct{}, 2),
+		stopCh: make(chan struct{}, 2),
 	}
 
 	jc.pipeline.Store(&pipe)
@@ -135,7 +127,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 	}
 
 	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
-	otel.SetTextMapPropagator(prop)
 
 	// PARSE CONFIGURATION -------
 	var conf config
@@ -169,8 +160,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 		pq:             pq,
 		log:            log,
 		pool:           cPool,
-		network:        network,
-		addr:           address,
 		tout:           conf.Timeout,
 		tName:          pipe.String(tube, "default"),
 		reserveTimeout: time.Second * time.Duration(pipe.Int(reserveTimeout, 5)),
@@ -178,8 +167,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 		priority:       pipe.Priority(),
 
 		// buffered with two because jobs root plugin can call Stop at the same time as Pause
-		stopCh:      make(chan struct{}, 2),
-		reconnectCh: make(chan struct{}, 2),
+		stopCh: make(chan struct{}, 2),
 	}
 
 	jc.pipeline.Store(&pipe)
@@ -227,7 +215,7 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    d.tName,
-		Ready:    ready(d.listeners.Load()),
+		Ready:    d.listeners.Load() > 0,
 	}
 
 	// set stat, skip errors (replace with 0)
@@ -311,7 +299,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
-	d.listeners.Add(^uint32(0))
+	d.listeners.Add(-1)
 
 	d.stopCh <- struct{}{}
 	d.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
@@ -337,11 +325,10 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Str("beanstalk listener already in the active state")
 	}
 
-	// start listener
-	go d.listen(ctx)
-
-	// increase num of listeners
+	// increase num of listeners before starting goroutine so Stop cannot miss stopCh
 	d.listeners.Add(1)
+
+	go d.listen(ctx)
 	d.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
@@ -352,9 +339,9 @@ func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 
 	d.prop.Inject(ctx, propagation.HeaderCarrier(item.Hdrs))
 
-	bb := new(bytes.Buffer)
+	var bb bytes.Buffer
 	bb.Grow(64)
-	err := gob.NewEncoder(bb).Encode(item)
+	err := gob.NewEncoder(&bb).Encode(item)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -382,8 +369,4 @@ func (d *Driver) handleItem(ctx context.Context, item *Item) error {
 	}
 
 	return nil
-}
-
-func ready(r uint32) bool {
-	return r > 0
 }
