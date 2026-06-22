@@ -3,7 +3,7 @@
   "prefer-stable": true,
   "require": {
     "ext-curl": "*",
-    "guzzlehttp/guzzle": "^6.5",
+    "guzzlehttp/guzzle": "^7.12",
     "nyholm/psr7": "^1.5",
     "spiral/roadrunner-http": "^3.0",
     "spiral/roadrunner-worker": "^3.0",
