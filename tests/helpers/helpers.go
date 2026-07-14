@@ -2,41 +2,46 @@ package helpers
 
 import (
 	"bytes"
-	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
+	"net/rpc"
 	"slices"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
-	"github.com/roadrunner-server/api-go/v6/jobs/v2/jobsV2connect"
 	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
+	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func NewJobsClient(t *testing.T, address string) jobsV2connect.JobsServiceClient {
+const (
+	push     string = "jobs.Push"
+	pause    string = "jobs.Pause"
+	destroy  string = "jobs.Destroy"
+	resume   string = "jobs.Resume"
+	declare  string = "jobs.Declare"
+	getStats string = "jobs.GetStats"
+)
+
+// NewJobsClient dials the RoadRunner RPC endpoint and returns a net/rpc client
+// speaking the goridge frame codec (the same transport the PHP SDK uses).
+func NewJobsClient(t *testing.T, address string) *rpc.Client {
 	t.Helper()
-	httpc := &http.Client{Transport: &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-			return new(net.Dialer).DialContext(ctx, network, addr)
-		},
-	}}
-	t.Cleanup(httpc.CloseIdleConnections)
-	return jobsV2connect.NewJobsServiceClient(httpc, "http://"+address)
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", address)
+	require.NoError(t, err)
+	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
 }
 
 func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Resume(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
+		err := client.Call(resume, &jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}, &jobsProto.JobsHandlerResponse{})
 		require.NoError(t, err)
 	}
 }
@@ -44,7 +49,7 @@ func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Push(t.Context(), connect.NewRequest(&jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}))
+		err := client.Call(push, &jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}, &jobsProto.JobsHandlerResponse{})
 		require.NoError(t, err)
 	}
 }
@@ -63,7 +68,7 @@ func PushToPipeDelayed(address string, pipeline string, delay int64) func(t *tes
 				Delay:    delay,
 			},
 		}}
-		_, err := client.Push(t.Context(), connect.NewRequest(req))
+		err := client.Call(push, req, &jobsProto.JobsHandlerResponse{})
 		assert.NoError(t, err)
 	}
 }
@@ -86,7 +91,7 @@ func createDummyJob(pipeline string, autoAck bool) *jobsProto.Job {
 func PausePipelines(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Pause(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
+		err := client.Call(pause, &jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}, &jobsProto.JobsHandlerResponse{})
 		require.NoError(t, err)
 	}
 }
@@ -100,7 +105,7 @@ func DestroyPipelines(address string, pipes ...string) func(t *testing.T) {
 		// without asserting. Some negative tests intentionally destroy
 		// non-existent pipelines and rely on this silent-after-retry pattern.
 		for range 10 {
-			_, err := client.Destroy(t.Context(), connect.NewRequest(req))
+			err := client.Call(destroy, req, &jobsProto.Pipelines{})
 			if err == nil {
 				return
 			}
@@ -113,12 +118,13 @@ func Stats(address string, state *jobState.State) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
 
-		resp, err := client.GetStats(t.Context(), connect.NewRequest(&emptypb.Empty{}))
+		resp := &jobsProto.Stats{}
+		err := client.Call(getStats, &emptypb.Empty{}, resp)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		require.NotEmpty(t, resp.Msg.GetStats())
+		require.NotEmpty(t, resp.GetStats())
 
-		st := resp.Msg.GetStats()[0]
+		st := resp.GetStats()[0]
 		state.Queue = st.GetQueue()
 		state.Pipeline = st.GetPipeline()
 		state.Driver = st.GetDriver()
