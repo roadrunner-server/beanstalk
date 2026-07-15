@@ -14,7 +14,6 @@ import (
 	"tests/helpers"
 	mocklogger "tests/mock"
 
-	"connectrpc.com/connect"
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
@@ -978,7 +977,7 @@ func declareBeanstalkPipe(address string) func(t *testing.T) {
 			"priority":        "3",
 			"tube_priority":   "10",
 		}}
-		_, err := client.Declare(t.Context(), connect.NewRequest(req))
+		err := client.Call("jobs.Declare", req, &jobsProto.JobsHandlerResponse{})
 		require.NoError(t, err)
 	}
 }
