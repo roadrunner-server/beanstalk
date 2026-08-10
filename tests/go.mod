@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0
 	google.golang.org/genproto v0.0.0-20260807164820-c8921c73eeea
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 replace github.com/roadrunner-server/beanstalk/v6 => ../
