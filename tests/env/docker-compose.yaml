@@ -1,6 +1,24 @@
-version: "3.8"
-
 services:
-  toxicproxy:
-    image: shopify/toxiproxy:latest
-    network_mode: "host"
+  # beanstalkd ships no official image, so it is built from the pinned release
+  beanstalkd:
+    build:
+      context: .
+      dockerfile: Dockerfile-beanstalkd.yaml
+    ports:
+      - "127.0.0.1:11300:11300"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/11300"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  # fronts beanstalkd for the durability (redial) test; bridged rather than host
+  # networked so the api and the proxied port are reachable off Linux too
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    depends_on:
+      beanstalkd:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8474:8474"
+      - "127.0.0.1:11400:11400"

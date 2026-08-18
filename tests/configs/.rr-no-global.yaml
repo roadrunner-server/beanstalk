@@ -29,7 +29,7 @@ jobs:
         priority: 11
         tube_priority: 1
         tube: default-1
-        reserve_timeout: 10s
+        reserve_timeout: 1s
 
   consume: [ "test-1" ]
 

@@ -128,21 +128,36 @@ func (cp *ConnPool) Delete(_ context.Context, id uint64) error {
 	return nil
 }
 
+// Stats reports the counters of the tube this pool is bound to. The connection
+// wide stats command would answer for every tube on the server, so a pipeline
+// would report jobs belonging to all the others.
+//
+// beanstalkd only knows a tube once it holds a job or a client watches it, so
+// an untouched tube answers NOT_FOUND and is reported as empty.
 func (cp *ConnPool) Stats(_ context.Context) (map[string]string, error) {
 	cp.RLock()
 	defer cp.RUnlock()
 
-	stat, err := cp.connTS.Load().Stats()
-	if err != nil {
-		errR := cp.checkAndRedial(err)
-		if errR != nil {
-			return nil, stderr.Join(err, errR)
-		}
-
-		return cp.connTS.Load().Stats()
+	stat, err := cp.t.Load().Stats()
+	if err == nil {
+		return stat, nil
 	}
 
-	return stat, nil
+	if stderr.Is(err, beanstalk.ErrNotFound) {
+		return map[string]string{}, nil
+	}
+
+	errR := cp.checkAndRedial(err)
+	if errR != nil {
+		return nil, stderr.Join(err, errR)
+	}
+
+	stat, err = cp.t.Load().Stats()
+	if err != nil && stderr.Is(err, beanstalk.ErrNotFound) {
+		return map[string]string{}, nil
+	}
+
+	return stat, err
 }
 
 // Stop and close the connections

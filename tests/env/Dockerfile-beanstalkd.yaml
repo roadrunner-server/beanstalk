@@ -1,14 +1,18 @@
-FROM ubuntu:24.04
+FROM alpine:3.22 AS build
 
-ARG DEBIAN_FRONTEND=noninteractive
+ARG BEANSTALKD_VERSION=1.13
 
-RUN apt-get update && apt-get install -y curl build-essential pkg-config
+RUN apk add --no-cache build-base curl
+RUN curl -sL https://github.com/beanstalkd/beanstalkd/archive/v${BEANSTALKD_VERSION}.tar.gz | tar xz -C /tmp
 
-RUN curl -sL https://github.com/kr/beanstalkd/archive/v1.13.tar.gz | tar xvz -C /tmp
-
-WORKDIR /tmp/beanstalkd-1.13
+WORKDIR /tmp/beanstalkd-${BEANSTALKD_VERSION}
 RUN make
-RUN cp beanstalkd /usr/bin
+
+FROM alpine:3.22
+
+# the healthcheck opens a tcp socket through bash
+RUN apk add --no-cache bash
+COPY --from=build /tmp/beanstalkd-*/beanstalkd /usr/bin/beanstalkd
 
 EXPOSE 11300
 ENTRYPOINT ["/usr/bin/beanstalkd"]
