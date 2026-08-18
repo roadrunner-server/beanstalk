@@ -2,7 +2,7 @@ module github.com/roadrunner-server/beanstalk/v6
 
 go 1.26
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
@@ -16,7 +16,7 @@ require (
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/sdk v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0
-	google.golang.org/genproto v0.0.0-20260810153831-ec0a7760b754
+	google.golang.org/genproto v0.0.0-20260817212433-ac3dfec99bb1
 )
 
 exclude (
