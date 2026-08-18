@@ -32,7 +32,7 @@ jobs:
         priority: 11
         tube_priority: 1
         tube: default-1-pq
-        reserve_timeout: 10s
+        reserve_timeout: 1s
 
     test-2-pq:
       driver: beanstalk
@@ -40,7 +40,7 @@ jobs:
         priority: 11
         tube_priority: 3
         tube: default-2-pq
-        reserve_timeout: 10s
+        reserve_timeout: 1s
 
 
 
