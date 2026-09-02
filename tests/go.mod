@@ -2,7 +2,7 @@ module tests
 
 go 1.27
 
-toolchain go1.27.0
+toolchain go1.27.1
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
