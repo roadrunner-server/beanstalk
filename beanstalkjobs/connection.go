@@ -169,8 +169,6 @@ func (cp *ConnPool) Stop() {
 }
 
 func (cp *ConnPool) redial() error {
-	const op = errors.Op("connection_pool_redial")
-
 	cp.Lock()
 	defer cp.Unlock()
 	// backoff here
@@ -183,19 +181,11 @@ func (cp *ConnPool) redial() error {
 		if err != nil {
 			return err
 		}
-		if connT == nil {
-			return errors.E(op, errors.Str("connectionT is nil"))
-		}
 
 		connTS, err := beanstalk.DialTimeout(cp.network, cp.address, cp.tout)
 		if err != nil {
 			_ = connT.Close()
 			return err
-		}
-
-		if connTS == nil {
-			_ = connT.Close()
-			return errors.E(op, errors.Str("connectionTS is nil"))
 		}
 
 		t := beanstalk.NewTube(connT, cp.tName)
@@ -215,12 +205,7 @@ func (cp *ConnPool) redial() error {
 		return nil
 	}
 
-	retryErr := backoff.Retry(operation, expb)
-	if retryErr != nil {
-		return retryErr
-	}
-
-	return nil
+	return backoff.Retry(operation, expb)
 }
 
 func (cp *ConnPool) checkAndRedial(err error) error {
