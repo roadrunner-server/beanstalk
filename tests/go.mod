@@ -7,7 +7,7 @@ toolchain go1.27.1
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.15
+	github.com/roadrunner-server/api-go/v6 v6.0.0
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
 	github.com/roadrunner-server/beanstalk/v6 v6.0.0
 	github.com/roadrunner-server/config/v6 v6.0.0-beta.4
