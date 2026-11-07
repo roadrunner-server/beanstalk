@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/json"
+	"encoding/json/v2"
 	"maps"
 	"sync/atomic"
 	"time"
